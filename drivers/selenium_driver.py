@@ -12,7 +12,7 @@ from settings import PROXY_LIST
 
 
 def call_selenium_driver(headless:bool=settings.USE_HEADLESS_SELENIUM, timeout:int=settings.CHROME_DRIVER_TIMEOUT,
-                        no_image:bool=True, implicit_wait:float=None,
+                        no_image:bool=True, implicit_wait:float=None, log_level:int=1,
                         use_proxy:bool=False, random_proxy:bool=True,
                         disable_css:bool=settings.DISABLE_CSS_JS_SELENIUM, silent_mode=False) -> WebDriver|int|None:
     """Call selenium driver with many options. To use proxy server, provide proxy server ip address and port. With 'site_url' decide if proxy should used to call the website.
@@ -45,7 +45,8 @@ def call_selenium_driver(headless:bool=settings.USE_HEADLESS_SELENIUM, timeout:i
         options.add_argument("--disable-features=NetworkService")
         options.add_argument("--disable-features=VizDisplayCompositor")
         # Selenium log level
-        # options.add_argument("--log-level=1")
+        
+        options.add_argument(f"--log-level={log_level}")
         # Selenium silent mode
         if silent_mode:
             options.add_experimental_option("excludeSwitches", ["enable-logging"])
