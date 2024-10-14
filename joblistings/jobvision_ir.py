@@ -20,9 +20,13 @@ def extract_website(site_url: str, job_title: str='python') -> str:
         page_number = 1
         # ! Get all the 'python' jobs
         job_link_set = _get_job_links(driver, job_title, job_link_set, page_number)
-        # ! To not repeat the above process again save the extracted job links into a file
-        # ! Process every 'job_cards' received
+        # ! Process the every job links extracted
         print(f'Number of jobs found for "{job_title}" job title: {len(job_link_set)}')
+        # To not repeat the above process again and save resources for a day, save the extracted job links into a file
+        if not _write_link_into_file(job_link_set):
+            driver.close()
+            return 'Could not enter job links into related file'
+        
     except Exception as e:
         print(f'CANNOT OPEN "{site_url}"')
         print(e.__str__())
@@ -32,7 +36,7 @@ def extract_website(site_url: str, job_title: str='python') -> str:
 
 
 def _get_job_links(driver:WebDriver, job_title:str, job_link_set:set, page_number:int, _job_card_css_selector:str='job-card > a', _pagination_css_selector:str='.pagination-page.page-item.active') -> set:
-    """Helper function to get job links in jobvision search section"""
+    """Get job links in jobvision search section"""
     # ! Add job links to the job_link_set
     try:
         while True:
@@ -59,17 +63,35 @@ def _get_job_links(driver:WebDriver, job_title:str, job_link_set:set, page_numbe
 
 def _is_check_job_links_file_date() -> bool:
     """Check the date in the first line of the '_jobvision_links.txt'. If less than a day passed since the job scrapped, return True. If no file found, create a new file"""
-    cd = pathlib.Path(__file__).parent.resolve()
+    current_directory = pathlib.Path(__file__).parent.resolve()
+    job_link_file_name = "_jobvision_links.txt"
     try:
-        with open(f'{os.path.join(cd, "_jobvision_links.txt")}', 'rt') as f:
-            date_str = f.readline()
-        date_obj = datetime.date.fromisoformat(date_str)
+        with open(f'{os.path.join(current_directory, job_link_file_name)}', 'rt') as f:
+            link_sample = f.readlines(400)
+            date_str = link_sample[0]
+        date_obj = datetime.date.fromisoformat(date_str.replace('\n', ''))
         td = datetime.date.today() - date_obj
-        if not td.days:
+        if td.days == 0 and len(link_sample) > 2:
             return True
     # If the file does not exist create it and enter today date in the first line in the file
-    except FileNotFoundError:
-        with open(f'{os.path.join(cd, "_jobvision_links.txt")}', 'wt') as f:
+    except Exception:
+        with open(f'{os.path.join(current_directory, job_link_file_name)}', 'wt') as f:
             f.write(datetime.date.today().strftime('%Y-%m-%d'))
         print('Jobvision job list file just created')
     return False
+
+
+def _write_link_into_file(job_link_set:set) -> bool:
+    """Write job link urls into job_link file. If successful return True"""
+    try:
+        current_directory = pathlib.Path(__file__).parent.resolve()
+        job_link_file_name = "_jobvision_links.txt"
+        with open(f'{os.path.join(current_directory, job_link_file_name)}', 'wt') as f:
+            f.write(datetime.date.today().strftime('%Y-%m-%d'))
+            for ul in job_link_set:
+                f.write(f"{'\n\n' + ul}")
+        print('Successfully entered job urls into file')
+        return True
+    except Exception as e:
+        print('A problem happend:\n', e.__str__())
+        return False
