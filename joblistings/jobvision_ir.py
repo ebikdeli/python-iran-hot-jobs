@@ -18,7 +18,7 @@ def extract_website(site_url: str, job_title: str='python') -> str:
         driver = call_selenium_driver(headless=1)
         job_link_set = set()
         page_number = 1
-        # ! Get all the 'python' jobs
+        # ! Get all the 'job_title' jobs in jobvision search
         job_link_set = _get_job_links(driver, job_title, job_link_set, page_number)
         # ! Process the every job links extracted
         print(f'Number of jobs found for "{job_title}" job title: {len(job_link_set)}')
@@ -26,7 +26,14 @@ def extract_website(site_url: str, job_title: str='python') -> str:
         if not _write_link_into_file(job_link_set):
             driver.close()
             return 'Could not enter job links into related file'
-        
+        # Extracted all specified data from every job page link in the 'job_link_set'
+        # !!!!!!!!!!!!
+        # for job_url in job_link_set:
+        #     print(f'Extracting link:\n{job_url}')
+        #     ej = ExtractJob(driver=driver, job_url=job_url)
+        #     title = ej.find_job_title()
+        #     company_name, company_link = ej.find_company_name_link()
+        # !!!!!!!!!!!
     except Exception as e:
         print(f'CANNOT OPEN "{site_url}"')
         print(e.__str__())
@@ -95,3 +102,52 @@ def _write_link_into_file(job_link_set:set) -> bool:
     except Exception as e:
         print('A problem happend:\n', e.__str__())
         return False
+
+
+class ExtractJob:
+    """In job page, extract all data from the page"""
+    def __init__(self, driver: WebDriver, job_url: str):
+        self.driver = driver
+        self.job_url = job_url
+
+    def extract(self) -> object:
+        """Extract data from a job page in jobvision"""
+        pass
+    
+    def find_job_title(self, title_selector:str='h1') -> str:
+        """Find job title. Return job title as str"""
+        # job_title_css_selector="h1"
+        title = str()
+        try:
+            title = self.driver.find_element(By.CSS_SELECTOR, title_selector).text
+        except Exception as e:
+            print(f'Alert: Could not find the "job title":\n{e.__str__()}')
+        return title
+    
+    def find_company_name_link(self, company_selector:str='.job-detail-external-card a') -> list[str, str]:
+        """Find company name and company link. Return a list of [comapny_name , company_link]"""
+        # company_name_css_selector=".job-detail-external-card"
+        company_name_link = list()
+        try:
+            company_name_link.append(self.driver.find_element(By.CSS_SELECTOR, company_selector).text)
+            # Save company link for future use
+            company_name_link.append(self.driver.find_element(By.CSS_SELECTOR, company_selector).get_attribute('href'))
+        except Exception as e:
+            print(f'Alert: Could not find the "company name" and "company link:\n{e.__str__()}')
+        return company_name_link
+    
+    def find_offered_salary(self, salary_selector:str='.job-detail-external-card .yn_price') -> int:
+        """Find offered [average] job salary monthly because in some jobs instead of a specific amount, there is a range for salary.
+        Return an integer as average salary in million toman. 0 means no amount offered"""
+        avg_salary_offered = 0
+        try:
+            _found_salary = self.driver.find_element(By.CSS_SELECTOR, salary_selector).text
+            if _found_salary:
+                _salary_list = list()
+                for fs in _found_salary.split():
+                    if fs.isdigit():
+                        _salary_list.append(int(fs))
+                avg_salary_offered = int(sum(_salary_list) / len(_salary_list)) if len(_salary_list) > 1 else _salary_list[0]
+        except Exception as e:
+            print(f'Alert: Could not find "salary offered":\n{e.__str__()}')
+        return avg_salary_offered
