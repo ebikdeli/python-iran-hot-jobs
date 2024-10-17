@@ -151,3 +151,24 @@ class ExtractJob:
         except Exception as e:
             print(f'Alert: Could not find "salary offered":\n{e.__str__()}')
         return avg_salary_offered
+    
+    # ? All of remaining content are under ".job-specification" selector
+    
+    def find_experience_needed(self, experience_selector:str='') -> int:
+        """Find experience needed for the job. Return int as years. If no experience found or mentioned return 0"""
+        exp = 0
+        try:
+            pass
+        except Exception as e:
+            print(f'Alert: Could not find "experience":\n{e.__str__()}')
+        return exp
+    
+    def find_skills_needed(self, skills_selector:str='') -> list[str]:
+        """Find needed skills"""
+        skills_list = list()
+        try:
+            pass
+        except Exception as e:
+            print(f'Alert: Could not find "skills needed": {e.__str__()}')
+        return skills_list
+    
