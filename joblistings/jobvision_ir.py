@@ -31,8 +31,7 @@ def extract_website(site_url: str, job_title: str='python') -> str:
         # for job_url in job_link_set:
         #     print(f'Extracting link:\n{job_url}')
         #     ej = ExtractJob(driver=driver, job_url=job_url)
-        #     title = ej.find_job_title()
-        #     company_name, company_link = ej.find_company_name_link()
+        #     ej.start_extraction(job_describtion=False)
         # !!!!!!!!!!!
     except Exception as e:
         print(f'CANNOT OPEN "{site_url}"')
@@ -105,14 +104,42 @@ def _write_link_into_file(job_link_set:set) -> bool:
 
 
 class ExtractJob:
-    """In job page, extract all data from the page"""
+    """In job page, extract all data from a single_page page"""
     def __init__(self, driver: WebDriver, job_url: str):
         self.driver = driver
         self.job_url = job_url
 
-    def extract(self) -> object:
-        """Extract data from a job page in jobvision"""
-        pass
+    def start_extraction(self, title:bool=True, company_name:bool=True, company_link:bool=True,
+                        salary:bool=True, experience:bool=True, age:bool=True, education:bool=True,
+                        skills:bool=True, gender:bool=True, language:bool=True, job_describtion:bool=True) -> dict:
+        """Start extracting data from a job page in jobvision. Return result as a dict"""
+        # _result = {'title': None, 'company_name': None, 'company_link': None, 'salary': None, 'experience': None,
+        #            'age': None, 'education': None, 'skills': None, 'gender': None, 'language': None, 'job_describtion': None}
+        _result = dict()
+        if title:
+            _result.update({'title': self.find_job_title()})
+        company_name, company_link = self.find_company_name_link()
+        if company_name:
+            _result.update({'company_name': company_name})
+        if company_link:
+            _result.update({'company_link': company_link})
+        if salary:
+            _result.update({'salary': self.find_offered_salary()})
+        if experience:
+            _result.update({'experience': self.find_experience_needed()})
+        if age:
+            _result.update({'age': self.find_age_suggestion()})
+        if education:
+            _result.update({'education': self.find_education()})
+        if skills:
+            _result.update({'skills': self.find_skills_needed()})
+        if gender:
+            _result.update({'gender': self.find_gender()})
+        if language:
+            _result.update({'language': self.find_language()})
+        if job_describtion:
+            _result.update({'job_describtion': self.find_job_describe()})
+        return _result
     
     def find_job_title(self, title_selector:str='h1') -> str:
         """Find job title. Return job title as str"""
@@ -136,39 +163,124 @@ class ExtractJob:
             print(f'Alert: Could not find the "company name" and "company link:\n{e.__str__()}')
         return company_name_link
     
-    def find_offered_salary(self, salary_selector:str='.job-detail-external-card .yn_price') -> int:
-        """Find offered [average] job salary monthly because in some jobs instead of a specific amount, there is a range for salary.
-        Return an integer as average salary in million toman. 0 means no amount offered"""
-        avg_salary_offered = 0
+    def find_offered_salary(self, salary_selector:str='.job-detail-external-card .yn_price') -> list[int, int]:
+        """Find offered job salary monthly in millions of Toman. Return 2-element list of [min-salary, max-salary].
+        If no specific salary found return [0, 0]. If only an specific salary found set both min_salary and max_salary the same"""
+        min_salary, max_salary = 0, 0
         try:
             _found_salary = self.driver.find_element(By.CSS_SELECTOR, salary_selector).text
             if _found_salary:
                 _salary_list = list()
-                for fs in _found_salary.split():
-                    if fs.isdigit():
-                        _salary_list.append(int(fs))
-                avg_salary_offered = int(sum(_salary_list) / len(_salary_list)) if len(_salary_list) > 1 else _salary_list[0]
+                for _ in _found_salary.split():
+                    if _.strip().isdigit():
+                        _salary_list.append(int(_.strip()))
+                if _salary_list:
+                    min_salary, max_salary = min(_salary_list), max(_salary_list)
+                    return [min_salary, max_salary]
         except Exception as e:
             print(f'Alert: Could not find "salary offered":\n{e.__str__()}')
-        return avg_salary_offered
+        return [min_salary, max_salary]
     
-    # ? All of remaining content are under ".job-specification" selector
-    
-    def find_experience_needed(self, experience_selector:str='') -> int:
+    def find_experience_needed(self, experience_selector:str='.job-specification .col.mr-2.px-0.word-break') -> int:
         """Find experience needed for the job. Return int as years. If no experience found or mentioned return 0"""
         exp = 0
         try:
-            pass
-        except Exception as e:
-            print(f'Alert: Could not find "experience":\n{e.__str__()}')
+            exp_text = self.driver.find_element(By.CSS_SELECTOR, experience_selector).text.strip()
+            if 'سال' in exp_text or 'years' in exp_text:
+                for _ in exp_text.split():
+                    if _.strip().isdigit():
+                        exp = int(_.strip())
+        except Exception:
+            try:
+                experience_selector = '.job-specification .col.ml-2.px-0.word-break'
+                exp_text = self.driver.find_element(By.CSS_SELECTOR, experience_selector).text.strip()
+                if 'سال' in exp_text or 'years' in exp_text:
+                    for _ in exp_text.split():
+                        if _.strip().isdigit():
+                            exp = int(_.strip())
+            except Exception as e:
+                print(f'Alert: Could not find "experience":\n{e.__str__()}')
         return exp
     
-    def find_skills_needed(self, skills_selector:str='') -> list[str]:
+    def find_age_suggestion(self, age_suggestion_selector:str='.job-specification .requirement-value.text-black.bg-light.py-2.px-3.ng-star-inserted') -> list[int, int]:
+        """Find the applican age suggestion for the job. Return 2-element list as [min_age, max_age]. If no age suggestion found return [0, 0]"""
+        min_age, max_age = 0, 0
+        try:
+            _found_age = self.driver.find_element(By.CSS_SELECTOR, age_suggestion_selector).text
+            if _found_age:
+                _age_list = list()
+                for _ in _found_age.split():
+                    if _.strip().isdigit():
+                        _age_list.append(int(_.strip()))
+                if _age_list:
+                    min_age, max_age = min(_age_list), max(_age_list)
+                    return [min_age, max_age]
+        except Exception as e:
+            print(f'Alert: Could not find "age suggestion":\n{e.__str__()}')
+        return [min_age, max_age]
+    
+    def find_gender(self, gender_selector:str='.job-specification .requirement-value.text-black.bg-light.py-2.px-3') -> str:
+        """Find applicant gender. Return gender. If gender not found return empty string"""
+        gender = str()
+        try:
+            elements = self.driver.find_elements(By.CSS_SELECTOR, gender_selector)
+            for e in elements:
+                if ('زن' in e.text.strip().lower() or 'women' in e.text.strip().lower()) and not ('مرد' in e.text.strip().lower() or 'men' in e.text.strip().lower()):
+                    gender = 'F'
+                elif  ('مرد' in e.text.strip().lower() or 'men' in e.text.strip().lower()) and not ('زن' in e.text.strip().lower() or 'women' in e.text.strip().lower()):
+                    gender = 'M'
+        except Exception as e:
+            print(f'Alert: Could not find "gender": {e.__str__()}')
+        return gender
+    
+    def find_language(self, language_selector:str='.job-specification .requirement-value.bg-light.py-2.px-3') -> str:
+        """Find language needed for the job. Return string. If no language found return empty string"""
+        lang = str()
+        try:
+            elements = self.driver.find_elements(By.CSS_SELECTOR, language_selector)
+            for e in elements:
+                if 'english' in e.text.strip().lower() or 'انگلیسی' in e.text.strip():
+                    lang = 'English'
+                elif 'arabi' in e.text.strip().lower() or 'عربی' in e.text.strip():
+                    lang = 'Arabic'
+                elif 'german' in e.text.strip().lower() or 'المانی' in e.text.strip() or 'آلمانی' in e.text.strip():
+                    lang = 'German'
+                elif 'fr' in e.text.strip().lower() or 'فرانس' in e.text.strip():
+                    lang = 'French'
+                elif 'tu' in e.text.strip().lower() or 'ترک' in e.text.strip():
+                    lang = 'Turkish'
+        except Exception as e:
+            print(f'Alert: Could not found "language": {e.__str__()}')
+        return lang
+    
+    def find_skills_needed(self, skills_selector:str='.row.col-11.px-0 div') -> list[str]:
         """Find needed skills"""
         skills_list = list()
         try:
-            pass
+            elements = self.driver.find_elements(By.CSS_SELECTOR, skills_selector)
+            for e in elements:
+                skills_list.append(e.text.replace('-', ':'))
         except Exception as e:
-            print(f'Alert: Could not find "skills needed": {e.__str__()}')
+            print(f'Alert: Could not find the "skills": {e.__str__()}')
         return skills_list
     
+    def find_education(self, education_selector:str='.job-specification .col-12.col-lg-9.px-lg-0 .tag.row.text-white.bg-secondary.rounded-sm.py-1.px-2.ml-2') -> list[str]:
+        """Find education needed for the job. Return education as list. If education not found or not suggested return empty list."""
+        education = list()
+        try:
+            elements = self.driver.find_elements(By.CSS_SELECTOR, education_selector)
+            for e in elements:
+                if 'کارشناس' in e.text.strip() or 'کاردانی' in e.text.strip() or 'Bachelor' in e.text.split():
+                    education.append(e.text.strip().replace('\n', ' ').replace('|', ':'))
+        except Exception as e:
+            print(f'Alert: Could not find the "education": {e.__str__()}')
+        return education
+    
+    def find_job_describe(self, job_describe_selector:str='.col-12.row.text-black.px-0.mb-3') -> str:
+        """Find job describtion. Return it as string. If not found return empty string"""
+        job_describe = str()
+        try:
+            job_describe = self.driver.find_element(By.CSS_SELECTOR, job_describe_selector).text.strip()
+        except Exception as e:
+            print(f'Alert: Could not find "job describtion": {job_describe}')
+        return job_describe
