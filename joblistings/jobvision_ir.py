@@ -1,4 +1,5 @@
 from drivers.selenium_driver import call_selenium_driver
+from save_data.save_csv import into_csv
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.common.exceptions import NoSuchElementException
@@ -41,8 +42,9 @@ class ExtractWebsite:
             # !!!!!!!!!!!!
             # for job_url in job_link_set:
             #     print(f'Extracting link:\n{job_url}')
-            #     ej = ExtractJob(driver=driver, job_url=job_url)
-            #     ej.start_extraction(job_describtion=False)
+            #     ej = ExtractJob(driver=self.driver, job_url=job_url)
+            #     result_data = ej.start_extraction(job_describtion=False)
+            #     save_result = into_csv(data=result_data, url=job_url)
             # !!!!!!!!!!!
         except Exception as e:
             print(f'CANNOT OPEN "{self.site_url}"')
@@ -119,11 +121,10 @@ class ExtractJob:
         
     def start_extraction(self, title:bool=True, company_name:bool=True, company_link:bool=True,
                         salary:bool=True, experience:bool=True, age:bool=True, education:bool=True,
-                        skills:bool=True, gender:bool=True, language:bool=True, job_describtion:bool=True) -> dict:
+                        skills:bool=True, gender:bool=True, language:bool=True, job_description:bool=True) -> dict:
         """Start extracting data from a job page in jobvision. Return result as a dict"""
-        # _result = {'title': None, 'company_name': None, 'company_link': None, 'salary': None, 'experience': None,
-        #            'age': None, 'education': None, 'skills': None, 'gender': None, 'language': None, 'job_describtion': None}
-        _result = dict()
+        _result = {'title': None, 'company_name': None, 'company_link': None, 'salary': None, 'experience': None,
+                   'age': None, 'education': None, 'skills': None, 'gender': None, 'language': None, 'job_description': None}
         if title:
             _result.update({'title': self.find_job_title()})
         company_name, company_link = self.find_company_name_link()
@@ -145,8 +146,8 @@ class ExtractJob:
             _result.update({'gender': self.find_gender()})
         if language:
             _result.update({'language': self.find_language()})
-        if job_describtion:
-            _result.update({'job_describtion': self.find_job_describe()})
+        if job_description:
+            _result.update({'job_description': self.find_job_describe()})
         return _result
     
     def find_job_title(self, title_selector:str='h1') -> str:
@@ -285,10 +286,10 @@ class ExtractJob:
         return education
     
     def find_job_describe(self, job_describe_selector:str='.col-12.row.text-black.px-0.mb-3') -> str:
-        """Find job describtion. Return it as string. If not found return empty string"""
+        """Find job description. Return it as string. If not found return empty string"""
         job_describe = str()
         try:
             job_describe = self.driver.find_element(By.CSS_SELECTOR, job_describe_selector).text.strip()
         except Exception as e:
-            print(f'Alert: Could not find "job describtion": {job_describe}')
+            print(f'Alert: Could not find "job descrition": {job_describe}')
         return job_describe
