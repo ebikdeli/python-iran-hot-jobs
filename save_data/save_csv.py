@@ -14,7 +14,7 @@ def into_csv(data:dict, url:str) -> bool:
                     data['skills'], data['gender'], data['language'], data['job_description']]
         # Check if csv file not exists or does not have header in it create a new csv file with 'fields' as header
         try:
-            f = open(csv_file, 'rt')
+            f = open(csv_file, 'rt', encoding='utf-8')
             first_line = f.readline()
             if not first_line:
                 with open(csv_file, mode='wt', encoding='utf-8') as f:
