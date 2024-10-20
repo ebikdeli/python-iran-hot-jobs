@@ -7,6 +7,7 @@ from time import sleep
 import datetime
 import pathlib
 import os
+import validators
 
 
 class ExtractWebsite:
@@ -14,30 +15,48 @@ class ExtractWebsite:
     def __init__(self, site_url:str, job_title:str='python') -> None:
         self.site_url = site_url
         self.job_title = job_title
+        self.driver = None
+    
+    def start_driver(self) -> WebDriver|None:
+        """Start webdriver"""
         try:
             driver = call_selenium_driver(headless=1)
         except Exception as e:
             print('Problem with selenium:\n', e.__str__())
             return None
-        self.driver = driver
+        return driver
     
     def start(self) -> str:
         """Extract jobvision.ir jobs"""
         print(f'Call the joblisting website for the "{self.site_url}"')
         try:
+            _scraped_today = False
+            # Check if job links scrapped today
             if self._is_check_job_links_file_date():
-                print('Just today jobvision jobs scraped')
-                return 'No need to scrapp jobvision'
+                _scraped_today = True
+                _continue = input(f'"jobvision.ir" jobs scraped just today. If you want to find the jobs for 
+                                  "{self.job_title}" again press "y". Press "n" to exit, or press any other 
+                                  key to scrap job links from the job_link file: ')
+                if _continue.strip().lower() == 'n':
+                    return 'Do not proceed with jobvision.ir'
+            self.driver = self.start_driver()
+            if not self.driver:
+                return 'Exit the program for error in running selenium driver'
+            # Scrap all job links for the title and write the links into a file or read job links from the file
             job_link_set = set()
-            page_number = 1
-            # ! Get all the 'job_title' jobs in jobvision search
-            job_link_set = self._get_job_links(job_link_set, page_number)
-            # ! Process the every job links extracted
-            print(f'Number of jobs found for "{self.job_title}" job title: {len(job_link_set)}')
-            # To not repeat the above process again and save resources for a day, save the extracted job links into a file
-            if not self._write_link_into_file(job_link_set):
-                self.driver.close()
-                return 'Could not enter job links into the related file'
+            if not _scraped_today or _continue == 'y':
+                page_number = 1
+                # ! Get all the 'job_title' jobs in jobvision search
+                job_link_set = self._get_job_links(job_link_set, page_number)
+                # ! Process the every job links extracted
+                print(f'Number of jobs found for "{self.job_title}" job title: {len(job_link_set)}')
+                # To not repeat the above process again and save resources for a day, save the extracted job links into a file
+                if not self._write_link_into_file(job_link_set):
+                    self.driver.close()
+                    return 'Could not enter job links into the related file'
+            else:
+                job_link_set = self._read_link_from_file(job_link_set)
+                print(f'Number of job links found in the file is "{len(job_link_set)}"')
             # Extracted all specified data from every job page link in the 'job_link_set'
             # !!!!!!!!!!!!
             # for job_url in job_link_set:
@@ -111,6 +130,21 @@ class ExtractWebsite:
         except Exception as e:
             print('A problem happend:\n', e.__str__())
             return False
+    
+    def _read_link_from_file(self, job_link_set:set) -> set:
+        """Read job link urls from job_link file. If successful return True"""
+        try:
+            current_directory = pathlib.Path(__file__).parent.resolve()
+            job_link_file_name = "_jobvision_links.txt"
+            with open(f'{os.path.join(current_directory, job_link_file_name)}', 'rt') as f:
+                data = f.readlines()
+            for d in data:
+                if d.startswith('http'):
+                    job_link_set.add(d.strip().replace('\n', ''))
+            print('Successfully read job urls from the file')
+        except Exception as e:
+            print('A problem happend:\n', e.__str__())
+        return job_link_set
 
 
 class ExtractJob:

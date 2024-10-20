@@ -2,18 +2,23 @@ from importlib import import_module
 import tldextract
 import validators
 import os
+import time
 
 
 def main():
     # ! 1- Enter website url and process it
-    site_url = input('Enter a joblisting website url: ')
-    # Check if entered website url is a valid domain or url name
-    if not (validators.domain(site_url) or validators.url(site_url)):
-        print(f'"{site_url}" is not a website url')
-        return -1
-    # Add 'http' in the begin of the domain name if it is forgotten
-    if not site_url.startswith('http'):
-        site_url = 'http://' + site_url
+    website_codes = {'1': 'jobvision.ir'}
+    while True:
+        enter_number = input('Website codes to scrap: Press "1" for "jobvision.ir". To quit press "n": ')
+        if enter_number.strip().lower() == 'n':
+            print('Program terminated...')
+            exit()
+        elif enter_number.strip() not in website_codes.keys():
+            print("Please enter a correct number\n")
+        else:
+            print(f'"{website_codes[enter_number]}" will be scrapped...')
+            break
+    site_url = 'http://' + website_codes[enter_number]
     # Check if the received url is in the 'joblistings' directory
     domain_name = tldextract.extract(site_url)
     joblisting_module = domain_name.domain + '_' + domain_name.suffix
@@ -31,8 +36,7 @@ def main():
         print(f'Error: Cannot extract data from "{joblisting_module}"')
 
 # main()
-
-
+# exit()
 ################################################################################### !
 ################################################################################### !
 ##############################! TEST PURPOSE !##################################### !
