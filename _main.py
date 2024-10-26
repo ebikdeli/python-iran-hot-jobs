@@ -43,6 +43,15 @@ def main():
 ################################################################################### !
 ################################################################################### !
 
+from database.sqlite_connector import SqlliteConnection
+import sqlite3
+from sqlite3 import Connection, Cursor
+sc: SqlliteConnection = SqlliteConnection()
+sc.get_or_create_extracted_data_table()
+sc.close_connect()
+exit()
+
+
 from drivers.selenium_driver import call_selenium_driver
 from joblistings.jobvision_ir import ExtractJob
 import time
