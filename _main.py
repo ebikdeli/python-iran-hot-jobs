@@ -1,6 +1,5 @@
 from importlib import import_module
 import tldextract
-import validators
 import os
 import time
 
@@ -47,7 +46,7 @@ from database.sqlite_connector import SqlliteConnection
 import sqlite3
 from sqlite3 import Connection, Cursor
 sc: SqlliteConnection = SqlliteConnection()
-sc.get_or_create_extracted_data_table()
+# sc.get_or_create_extracted_data()
 sc.close_connect()
 exit()
 

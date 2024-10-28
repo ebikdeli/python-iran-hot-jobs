@@ -50,7 +50,7 @@ class SqlliteConnection:
             pass
         self._cursor = None
     
-    def get_or_create_extracted_data_table(self) -> bool:
+    def get_or_create_extracted_data(self) -> bool:
         """Get or create "extracted_data" table"""
         try:
             _sql = f"""CREATE TABLE IF NOT EXISTS extracted_data(
@@ -68,10 +68,15 @@ class SqlliteConnection:
             language VARCHAR(15),
             skills MEDIUMTEXT,
             education MEDIUMTEXT,
-            description MEDIUMTEXT
+            description MEDIUMTEXT,
+            date DATE
             );"""
             self._cursor.execute(_sql)
             return True
         except Exception as e:
             print('Error happened in access to "extracted_data" table:\n', e.__str__())
             return False
+    
+    def insert_into_extracted_data(self) -> bool:
+        """Insert "extracted_data" table"""
+        
