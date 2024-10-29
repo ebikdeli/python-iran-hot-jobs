@@ -34,9 +34,10 @@ class ExtractWebsite:
             # Check if job links scrapped today
             if self._is_check_job_links_file_date():
                 _scraped_today = True
-                _continue = input(f'"jobvision.ir" jobs scraped just today. If you want to find the jobs for 
-                                  "{self.job_title}" again press "y". Press "n" to exit, or press any other 
-                                  key to scrap job links from the job_link file: ')
+                ##### ! For multiple line strings, we must use """ - """ format
+                _continue = input(f"""'jobvision.ir' jobs scraped just today. If you want to find the jobs for 
+                                  '{self.job_title}' again press 'y'. Press 'n' to exit, or press any other 
+                                  key to scrap job links from the job_link file: """)
                 if _continue.strip().lower() == 'n':
                     return 'Do not proceed with jobvision.ir'
             self.driver = self.start_driver()

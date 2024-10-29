@@ -1,5 +1,6 @@
 import sqlite3
 from sqlite3 import Connection, Cursor, OperationalError
+import os
 
 
 class SqlliteConnection:
@@ -16,7 +17,8 @@ class SqlliteConnection:
         """Connect to db. Return Connection instance if successful else return None."""
         try:
             if not isinstance(self._connect, Connection):
-                self._connect = sqlite3.connect(self.db)
+                _db_path = os.path.join(os.path.dirname(__file__), self.db)
+                self._connect = sqlite3.connect(_db_path)
             return self._connect
         except Exception as e:
             print(f'Connection did not make with "{self.db}":\n{e.__str__()}')
@@ -77,6 +79,6 @@ class SqlliteConnection:
             print('Error happened in access to "extracted_data" table:\n', e.__str__())
             return False
     
-    def insert_into_extracted_data(self) -> bool:
-        """Insert "extracted_data" table"""
+    def insert_jobs(self) -> bool:
+        """Insert extracted data into "jobs" table"""
         
