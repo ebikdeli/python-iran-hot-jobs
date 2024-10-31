@@ -1,3 +1,5 @@
+"""Extract data for all the jobs related to the job_title from the 'jobvision.ir' and process the extracted data."""
+
 from drivers.selenium_driver import call_selenium_driver
 from save_data.save_csv import into_csv
 from selenium.webdriver.common.by import By
@@ -328,3 +330,24 @@ class ExtractJob:
         except Exception as e:
             print(f'Alert: Could not find "job descrition": {job_describe}')
         return job_describe
+
+
+class ProcessExtractedJobData:
+    """Process the job data extracted from jobvision website. 'data' is a dictionary contains all the data extracted in ExtractJob
+    start_extraction"""
+    def __init__(self, data:dict):
+        self.data = data
+
+    def process_education(self) -> str|None:
+        """Process the education data extracted from 'jobvision.ir' website. If no education found return None"""
+        education_list = self.data.get('education', None)
+        if not education_list:
+            print('No education found for the job...')
+            return
+        # Process each job separately
+        for education in education_list:
+            pass
+
+    def process_skill(self) -> str|None:
+        """Process the education data extracted from 'jobvision.ir' website. If no education found return None"""
+        pass
