@@ -5,11 +5,11 @@ from save_data.save_csv import into_csv
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.common.exceptions import NoSuchElementException
+from database import sqlite_connector
 from time import sleep
 import datetime
 import pathlib
 import os
-import validators
 
 
 class ExtractWebsite:
@@ -158,10 +158,10 @@ class ExtractJob:
         
     def start_extraction(self, title:bool=True, company_name:bool=True, company_link:bool=True,
                         salary:bool=True, experience:bool=True, age:bool=True, education:bool=True,
-                        skills:bool=True, gender:bool=True, language:bool=True, job_description:bool=True) -> dict:
+                        skills:bool=True, gender:bool=True, language:bool=True, description:bool=True) -> dict:
         """Start extracting data from a job page in jobvision. Return result as a dict"""
         _result = {'title': None, 'company_name': None, 'company_link': None, 'salary': None, 'experience': None,
-                   'age': None, 'education': None, 'skills': None, 'gender': None, 'language': None, 'job_description': None}
+                   'age': None, 'education': None, 'skills': None, 'gender': None, 'language': None, 'description': None}
         if title:
             _result.update({'title': self.find_job_title()})
         company_name, company_link = self.find_company_name_link()
@@ -183,8 +183,8 @@ class ExtractJob:
             _result.update({'gender': self.find_gender()})
         if language:
             _result.update({'language': self.find_language()})
-        if job_description:
-            _result.update({'job_description': self.find_job_describe()})
+        if description:
+            _result.update({'description': self.find_job_describe()})
         return _result
     
     def find_job_title(self, title_selector:str='h1') -> str:
@@ -338,16 +338,22 @@ class ProcessExtractedJobData:
     def __init__(self, data:dict):
         self.data = data
 
-    def process_education(self) -> str|None:
+    def education(self) -> str|None:
         """Process the education data extracted from 'jobvision.ir' website. If no education found return None"""
-        education_list = self.data.get('education', None)
+        education_list: list[str]|None = self.data.get('education', None)
         if not education_list:
             print('No education found for the job...')
             return
-        # Process each job separately
-        for education in education_list:
-            pass
+        # Process each job separately. 'education_list' is like this:
+        # ['Bachelor : Computer and IT' , 'Bachelor : Electrical Engineering' , 'Bachelor : Finance/Accounting']
+        for _education_str in education_list:
+            degree, course = _education_str.split(':')
+            degree = degree.strip()
+            course = course.strip()
+            # Check if there are more than one education is in the ed_cert separated by '/'
+            if '/' in course:
+                ....
 
-    def process_skill(self) -> str|None:
+    def skill(self) -> str|None:
         """Process the education data extracted from 'jobvision.ir' website. If no education found return None"""
         pass

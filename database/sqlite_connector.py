@@ -1,6 +1,9 @@
+"""Sqllite3 connection and process defined here."""
+from ._helper_functions import _insert_fields_values
 import sqlite3
 from sqlite3 import Connection, Cursor, OperationalError
 import os
+import datetime
 
 
 class SqlliteConnection:
@@ -12,7 +15,7 @@ class SqlliteConnection:
         self._cursor: Cursor = None
         self.make_connect()
         self.make_cursor()
-
+    
     def make_connect(self) -> Connection|None:
         """Connect to db. Return Connection instance if successful else return None."""
         try:
@@ -52,10 +55,10 @@ class SqlliteConnection:
             pass
         self._cursor = None
     
-    def get_or_create_extracted_data(self) -> bool:
-        """Get or create "extracted_data" table"""
+    def get_or_create_job(self) -> bool:
+        """Get or create "job" table"""
         try:
-            _sql = f"""CREATE TABLE IF NOT EXISTS extracted_data(
+            _sql = f"""CREATE TABLE IF NOT EXISTS job(
             id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
             title VARCHAR(255) NOT NULL,
             url VARCHAR(1000) NOT NULL,
@@ -68,17 +71,43 @@ class SqlliteConnection:
             age_max INT DEFAULT 0,
             gender VARCHAR(10),
             language VARCHAR(15),
-            skills MEDIUMTEXT,
-            education MEDIUMTEXT,
             description MEDIUMTEXT,
             date DATE
             );"""
             self._cursor.execute(_sql)
             return True
         except Exception as e:
-            print('Error happened in access to "extracted_data" table:\n', e.__str__())
+            print('Error happened in access to "job" table:\n', e.__str__())
             return False
     
-    def insert_jobs(self) -> bool:
-        """Insert extracted data into "jobs" table"""
-        
+    def insert_job(self, data: dict) -> bool:
+        """Insert data into "job" table. Return True if successful.\n
+        "data" is a dict contains {column1: value1, column2: value2, ....}."""
+        try:
+            # Add 'date' field and set its value as today date
+            data.update({'date': datetime.date.today().__str__()})
+            _job_string_fields = ['title', 'url', 'company_name', 'company_link', 'gender', 'language', 'description', 'date']
+            _job_fields, _job_values = _insert_fields_values(data, _job_string_fields)
+            sql = f"INSERT INTO job({_job_fields}) VALUES({_job_values})"
+            self._cursor.execute(sql)
+            return True
+        except Exception as e:
+            print(f'Cannot insert data into "job" table:\n{e.__str__()}\n')
+            return False
+    
+    def get_or_create_education(self) -> bool:
+        """Get 'education' table. If not exist create it. If error happend return False."""
+        try:
+            _sql = f"""CREATE TABLE IF NOT EXISTS education(
+            id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            job_id INT NOT NULL,
+            degree VARCHAR(50) NOT NULL,
+            course VARCHAR(60) NOT NULL,
+            date DATE
+            FOREIGN KEY (job_id) REFERENCES job(id) 
+            );"""
+            self._cursor.execute(_sql)
+            return True
+        except Exception as e:
+            print('Error in access "education" table:\n', e.__str__(), '\n')
+            return False
