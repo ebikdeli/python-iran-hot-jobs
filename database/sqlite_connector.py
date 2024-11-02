@@ -55,6 +55,8 @@ class SqlliteConnection:
             pass
         self._cursor = None
     
+    # 'job' table
+    
     def get_or_create_job(self) -> bool:
         """Get or create "job" table"""
         try:
@@ -80,8 +82,8 @@ class SqlliteConnection:
             print('Error happened in access to "job" table:\n', e.__str__())
             return False
     
-    def insert_job(self, data: dict) -> bool:
-        """Insert data into "job" table. Return True if successful.\n
+    def insert_job(self, data: dict) -> int|None:
+        """Insert data into "job" table. If successful return latest row 'id' of the job just inserted.\n
         "data" is a dict contains {column1: value1, column2: value2, ....}."""
         try:
             # Add 'date' field and set its value as today date
@@ -90,10 +92,14 @@ class SqlliteConnection:
             _job_fields, _job_values = _insert_fields_values(data, _job_string_fields)
             sql = f"INSERT INTO job({_job_fields}) VALUES({_job_values})"
             self._cursor.execute(sql)
-            return True
+            self._connect.commit()
+            _latest_job_id = self._cursor.lastrowid()
+            return _latest_job_id
         except Exception as e:
             print(f'Cannot insert data into "job" table:\n{e.__str__()}\n')
-            return False
+            return None
+    
+    # 'education' table
     
     def get_or_create_education(self) -> bool:
         """Get 'education' table. If not exist create it. If error happend return False."""
@@ -111,3 +117,56 @@ class SqlliteConnection:
         except Exception as e:
             print('Error in access "education" table:\n', e.__str__(), '\n')
             return False
+        
+    def insert_education(self, data: dict, job_id: int) -> int|None:
+        """Insert data into "education" table. If successful return latest row 'id' of the education just inserted.\n
+        "data" is a dict contains {column1: value1, column2: value2, ....}.\n
+        "job_id" is the foreign_key field to "job.id" table and its primary_key field 'id'."""
+        try:
+            data.update({'job_id': job_id, 'date': datetime.date.today().__str__()})
+            _education_string_fields = ['degree', 'course', 'date']
+            _job_fields, _job_values = _insert_fields_values(data, _education_string_fields)
+            sql = f"INSERT INTO education({_job_fields}) VALUES({_job_values})"
+            self._cursor.execute(sql)
+            self._connect.commit()
+            _latest_education_id = self._cursor.lastrowid()
+            return _latest_education_id
+        except Exception as e:
+            print(f'Cannot insert data into "education" table:\n{e.__str__()}\n')
+            return None
+    
+    # 'skill' table
+    
+    def get_or_create_skill(self) -> bool:
+        """Get 'skill' table. If not exist create it. If error happend return False."""
+        try:
+            _sql = f"""CREATE TABLE IF NOT EXISTS skill(
+            id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            job_id INT NOT NULL,
+            skill_name VARCHAR(50) NOT NULL,
+            skill_level VARCHAR(60) NOT NULL,
+            date DATE
+            FOREIGN KEY (job_id) REFERENCES job(id) 
+            );"""
+            self._cursor.execute(_sql)
+            return True
+        except Exception as e:
+            print('Error in access "skill" table:\n', e.__str__(), '\n')
+            return False
+    
+    def insert_skill(self, data: dict, job_id: int) -> int|None:
+        """Insert data into "skill" table. If successful return latest row 'id' of the skill just inserted.\n
+        "data" is a dict contains {column1: value1, column2: value2, ....}.\n
+        "job_id" is the foreign_key field to "job.id" table and its primary_key field 'id'."""
+        try:
+            data.update({'job_id': job_id, 'date': datetime.date.today().__str__()})
+            _skill_string_fields = ['skill_name', 'skill_level', 'date']
+            _skill_fields, _skill_values = _insert_fields_values(data, _skill_string_fields)
+            sql = f"INSERT INTO education({_skill_fields}) VALUES({_skill_values})"
+            self._cursor.execute(sql)
+            self._connect.commit()
+            _latest_skill_id = self._cursor.lastrowid()
+            return _latest_skill_id
+        except Exception as e:
+            print(f'Cannot insert data into "skill" table:\n{e.__str__()}\n')
+            return None

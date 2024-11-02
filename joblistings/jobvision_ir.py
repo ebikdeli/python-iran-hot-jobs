@@ -338,22 +338,52 @@ class ProcessExtractedJobData:
     def __init__(self, data:dict):
         self.data = data
 
-    def education(self) -> str|None:
-        """Process the education data extracted from 'jobvision.ir' website. If no education found return None"""
-        education_list: list[str]|None = self.data.get('education', None)
-        if not education_list:
-            print('No education found for the job...')
-            return
-        # Process each job separately. 'education_list' is like this:
-        # ['Bachelor : Computer and IT' , 'Bachelor : Electrical Engineering' , 'Bachelor : Finance/Accounting']
-        for _education_str in education_list:
-            degree, course = _education_str.split(':')
-            degree = degree.strip()
-            course = course.strip()
-            # Check if there are more than one education is in the ed_cert separated by '/'
-            if '/' in course:
-                ....
-
-    def skill(self) -> str|None:
-        """Process the education data extracted from 'jobvision.ir' website. If no education found return None"""
+    def education(self) -> list[list[str, str]]:
+        """Process the education data extracted from 'jobvision.ir' website and insert the data into 'education' table.\n
+        If successful returns list of lists. Each inner list is a 2-element string. First element is degree and the
+        second element is the course. For eg:.\n
+        [['Bachelor', 'Computer], ['Bachelor': 'Accounting']]\n
+        If no education found return empty list."""
+        try:
+            education_list_processed = list()
+            _education_list: list[str]|None = self.data.get('education', None)
+            if not _education_list:
+                print('No education found for the job...')
+            # Process each job separately. 'education_list' is like this:
+            # ['Bachelor : Computer and IT' , 'Bachelor : Electrical Engineering' , 'Bachelor : Finance/Accounting']
+            for _education_str in _education_list:
+                degree, course = _education_str.split(':')
+                degree = degree.strip()
+                course = course.strip()
+                # ! Check if there are more than one education is in the 'course' separated by '/' (For now we ignore separation)
+                # !!!!!!!!!!!!!    MORE PROCESS HERE IF NEEDED    !!!!!!!!!!!!!!!!!
+                education_list_processed.append([degree, course])
+        except Exception as e:
+            print('Error in joblistings.jobvision.ProcessExtractedJobData.education:\n', e.__str__())
+        return education_list_processed
+    
+    def skill(self) -> list[list[str, str]]:
+        """Process the skill data extracted from 'jobvision.ir' website and insert the data into 'skill' table.\n
+        If successful returns list of lists. Each inner list is a 2-element string. First element is skill_name and the
+        second element is the skill_level. For eg:.\n
+        [['Python', 'Intermediate], ['Linux': 'Advanced']]\n
+        If no skill found return empty list."""
+        try:
+            skill_list_processed = list()
+            _skill_list: list[str]|None = self.data.get('skill', None)
+            if not _skill_list:
+                print('No skill found for the job...')
+            # Process each job separately. 'skill_list' is like this:
+            # ['Java : Advanced' , 'Ruby on Rails : Intermediate' , 'Python : Advanced' , 'ASP.Net : Advanced' , 'JavaScript : Intermediate' , 'Go : Intermediate' , 'PHP : Intermediate' , 'Node.js : Intermediate' , 'Laravel : Advanced' , '.Net Core / .Net : Advanced']
+            for _skill_str in _skill_list:
+                skill_name, skill_level = _skill_str.split(':')
+                skill_name = skill_name.strip()
+                skill_level = skill_level.strip()
+                # !!!!!!!!!!!!!    MORE PROCESS HERE IF NEEDED    !!!!!!!!!!!!!!!!!
+                skill_list_processed.append([skill_name, skill_level])
+        except Exception as e:
+            print('Error in joblistings.jobvision.ProcessExtractedJobData.skill:\n', e.__str__())
+        return skill_list_processed
+    
+    def description(self) -> object:
         pass

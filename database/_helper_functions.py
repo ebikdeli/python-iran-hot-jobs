@@ -5,7 +5,7 @@ def _insert_fields_values(data:dict, string_fields:list=[], ignore_none: bool=Tr
     "data" is a dictionary contains data should be inserted into db as {field1: value1, field2: value2, ...}.\n
     "string_fields" is a list of string fields to tells the function if value of the field must have string character
     'value' around it to be inserted into the db without error.\n
-    "ignore_none" is a boolean. If it is True, if the field has no value in it, ignore the field and its value.
+    "ignore_none" is a boolean. If it is True, if the field has no value in it, ignore the field and its value.\n
     Returns 2-element tuple. First element is a string represents (...fields...) as comma separated.
     Second element is a string represnts (...values...) as comma separated.\n
     If exception raised return None.
