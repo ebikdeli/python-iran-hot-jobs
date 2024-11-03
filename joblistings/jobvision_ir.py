@@ -5,75 +5,98 @@ from save_data.save_csv import into_csv
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.common.exceptions import NoSuchElementException
-from database import sqlite_connector
+from database.sqlite_connector import SqlliteConnection
 from time import sleep
 import datetime
 import pathlib
 import os
 
 
+
 class ExtractWebsite:
     """Extract data from jobvision.ir website."""
-    def __init__(self, site_url:str, job_title:str='python') -> None:
+    def __init__(self, site_url:str, job_title:str='python', single_link:str='') -> None:
         self.site_url = site_url
         self.job_title = job_title
+        self.single_link = single_link
         self.driver = None
+    
     
     def start_driver(self) -> WebDriver|None:
         """Start webdriver"""
         try:
-            driver = call_selenium_driver(headless=1)
+            self.driver = call_selenium_driver(headless=1)
         except Exception as e:
             print('Problem with selenium:\n', e.__str__())
             return None
-        return driver
+        return self.driver
+    
     
     def start(self) -> str:
         """Extract jobvision.ir jobs"""
         print(f'Call the joblisting website for the "{self.site_url}"')
         try:
-            _scraped_today = False
-            # Check if job links scrapped today
-            if self._is_check_job_links_file_date():
-                _scraped_today = True
-                ##### ! For multiple line strings, we must use """ - """ format
-                _continue = input(f"""'jobvision.ir' jobs scraped just today. If you want to find the jobs for 
-                                  '{self.job_title}' again press 'y'. Press 'n' to exit, or press any other 
-                                  key to scrap job links from the job_link file: """)
-                if _continue.strip().lower() == 'n':
-                    return 'Do not proceed with jobvision.ir'
+            # Start chrome driver
             self.driver = self.start_driver()
             if not self.driver:
                 return 'Exit the program for error in running selenium driver'
-            # Scrap all job links for the title and write the links into a file or read job links from the file
-            job_link_set = set()
-            if not _scraped_today or _continue == 'y':
-                page_number = 1
-                # ! Get all the 'job_title' jobs in jobvision search
-                job_link_set = self._get_job_links(job_link_set, page_number)
-                # ! Process the every job links extracted
-                print(f'Number of jobs found for "{self.job_title}" job title: {len(job_link_set)}')
-                # To not repeat the above process again and save resources for a day, save the extracted job links into a file
-                if not self._write_link_into_file(job_link_set):
-                    self.driver.close()
-                    return 'Could not enter job links into the related file'
+            
+            # Check if there is a job link in 'self.single_link' just scrap the link and ignore all the links in the website
+            if not self.single_link:
+                _scraped_today = False
+                # Check if job links scrapped today
+                if self._is_check_job_links_file_date():
+                    _scraped_today = True
+                    ##### ! For multiple line strings, we must use """ - """ format
+                    _continue = input(f"""'jobvision.ir' jobs scraped just today. If you want to find the jobs for 
+                                    '{self.job_title}' again press 'y'. Press 'n' to exit, or press any other 
+                                    key to scrap job links from the job_link file: """)
+                    if _continue.strip().lower() == 'n':
+                        return 'Do not proceed with jobvision.ir'
+                    
+                # Scrap all job links for the title and write the links into a file or read job links from the file
+                job_link_set = set()
+                if not _scraped_today or _continue == 'y':
+                    page_number = 1
+                    # ! Get all the 'job_title' jobs in jobvision search
+                    job_link_set = self._get_job_links(job_link_set, page_number)
+                    # ! Process the every job links extracted
+                    print(f'Number of jobs found for "{self.job_title}" job title: {len(job_link_set)}')
+                    # To not repeat the above process again and save resources for a day, save the extracted job links into a file
+                    if not self._write_link_into_file(job_link_set):
+                        self.driver.close()
+                        return 'Could not enter job links into the related file'
+                else:
+                    job_link_set = self._read_link_from_file(job_link_set)
+                    print(f'Number of job links found in the file is "{len(job_link_set)}"')
+                    
+            # Add the single_link to the 'job_link_set' to just scrap that page
             else:
-                job_link_set = self._read_link_from_file(job_link_set)
-                print(f'Number of job links found in the file is "{len(job_link_set)}"')
+                job_link_set = set()
+                job_link_set.add(self.single_link)
+                
             # Extracted all specified data from every job page link in the 'job_link_set'
             # !!!!!!!!!!!!
-            # for job_url in job_link_set:
-            #     print(f'Extracting link:\n{job_url}')
-            #     ej = ExtractJob(driver=self.driver, job_url=job_url)
-            #     result_data = ej.start_extraction(job_describtion=False)
-            #     save_result = into_csv(data=result_data, url=job_url)
+            for job_url in job_link_set:
+                print(f'Extracting link:\n"{job_url}"\n')
+                # Load the 'job_url' with 'driver'
+                self.driver.get(job_url)
+                # Extract the job and scrap all needed data from the job url
+                ej = ExtractJob(driver=self.driver, job_url=job_url)
+                raw_data = ej.start_extraction(description=False)
+                # Insert data into the database
+                normalized_data = ej.normalize_data_for_db(raw_data)
+                result = ej.insert_data_into_sqlite(normalized_data)
             # !!!!!!!!!!!
+            
         except Exception as e:
-            print(f'CANNOT OPEN "{self.site_url}"')
-            print(e.__str__())
-            return 'Extraction failed'
+            print(f'Error in "joblistings.jobvision_ir.ExtractWebsite.start":\n{e.__str__()}')
+            return 'failed'
+        
+        # Close connection
         self.driver.close()
         return 'OK'
+    
     
     def _get_job_links(self, job_link_set:set, page_number:int, _job_card_css_selector:str='job-card > a', _pagination_css_selector:str='.pagination-page.page-item.active') -> set:
         """Get job links in jobvision search section"""
@@ -100,6 +123,7 @@ class ExtractWebsite:
             print(f'Problem in scraping below url:\n{search_url}\nError:\n{e.__str__()}')
             return job_link_set
     
+    
     def _is_check_job_links_file_date(self) -> bool:
         """Check the date in the first line of the '_jobvision_links.txt'. If less than a day passed since the job scrapped, return True. If no file found, create a new file"""
         current_directory = pathlib.Path(__file__).parent.resolve()
@@ -119,6 +143,7 @@ class ExtractWebsite:
             print('Jobvision job list file just created')
         return False
     
+    
     def _write_link_into_file(self, job_link_set:set) -> bool:
         """Write job link urls into job_link file. If successful return True"""
         try:
@@ -133,6 +158,7 @@ class ExtractWebsite:
         except Exception as e:
             print('A problem happend:\n', e.__str__())
             return False
+    
     
     def _read_link_from_file(self, job_link_set:set) -> set:
         """Read job link urls from job_link file. If successful return True"""
@@ -150,42 +176,51 @@ class ExtractWebsite:
         return job_link_set
 
 
+
 class ExtractJob:
     """In job page, extract all data from a single_page page."""
     def __init__(self, driver: WebDriver, job_url: str) -> None:
+        """'driver' contains the html data from job_url"""
         self.driver = driver
         self.job_url = job_url
-        
+    
+    
     def start_extraction(self, title:bool=True, company_name:bool=True, company_link:bool=True,
                         salary:bool=True, experience:bool=True, age:bool=True, education:bool=True,
                         skills:bool=True, gender:bool=True, language:bool=True, description:bool=True) -> dict:
         """Start extracting data from a job page in jobvision. Return result as a dict"""
-        _result = {'title': None, 'company_name': None, 'company_link': None, 'salary': None, 'experience': None,
-                   'age': None, 'education': None, 'skills': None, 'gender': None, 'language': None, 'description': None}
-        if title:
-            _result.update({'title': self.find_job_title()})
-        company_name, company_link = self.find_company_name_link()
-        if company_name:
-            _result.update({'company_name': company_name})
-        if company_link:
-            _result.update({'company_link': company_link})
-        if salary:
-            _result.update({'salary': self.find_offered_salary()})
-        if experience:
-            _result.update({'experience': self.find_experience_needed()})
-        if age:
-            _result.update({'age': self.find_age_suggestion()})
-        if education:
-            _result.update({'education': self.find_education()})
-        if skills:
-            _result.update({'skills': self.find_skills_needed()})
-        if gender:
-            _result.update({'gender': self.find_gender()})
-        if language:
-            _result.update({'language': self.find_language()})
-        if description:
-            _result.update({'description': self.find_job_describe()})
-        return _result
+        try:
+            _result_dict = {'title': None, 'url': self.job_url, 'company_name': None, 'company_link': None,
+                            'salary': None, 'experience': None, 'age': None, 'education': None,
+                            'skills': None, 'gender': None, 'language': None, 'description': None}
+            
+            if title:
+                _result_dict.update({'title': self.find_job_title()})
+            company_name, company_link = self.find_company_name_link()
+            if company_name:
+                _result_dict.update({'company_name': company_name})
+            if company_link:
+                _result_dict.update({'company_link': company_link})
+            if salary:
+                _result_dict.update({'salary': self.find_offered_salary()})
+            if experience:
+                _result_dict.update({'experience': self.find_experience_needed()})
+            if age:
+                _result_dict.update({'age': self.find_age_suggestion()})
+            if education:
+                _result_dict.update({'education': self.find_education()})
+            if skills:
+                _result_dict.update({'skills': self.find_skills_needed()})
+            if gender:
+                _result_dict.update({'gender': self.find_gender()})
+            if language:
+                _result_dict.update({'language': self.find_language()})
+            if description:
+                _result_dict.update({'description': self.find_job_describe()})
+        except KeyboardInterrupt as e:
+            print('Error in "joblistings.jobvision_ir.ExtractJob.start_extraction":', '\n', e.__str__(), '\n')
+        return _result_dict
+    
     
     def find_job_title(self, title_selector:str='h1') -> str:
         """Find job title. Return job title as str"""
@@ -194,8 +229,9 @@ class ExtractJob:
         try:
             title = self.driver.find_element(By.CSS_SELECTOR, title_selector).text
         except Exception as e:
-            print(f'Alert: Could not find the "job title":\n{e.__str__()}')
+            print(f'Alert: Could not find the "job title":\n{e.__str__()}\n')
         return title
+    
     
     def find_company_name_link(self, company_selector:str='.job-detail-external-card a') -> list[str, str]:
         """Find company name and company link. Return a list of [comapny_name , company_link]"""
@@ -206,8 +242,9 @@ class ExtractJob:
             # Save company link for future use
             company_name_link.append(self.driver.find_element(By.CSS_SELECTOR, company_selector).get_attribute('href'))
         except Exception as e:
-            print(f'Alert: Could not find the "company name" and "company link:\n{e.__str__()}')
+            print(f'Alert: Could not find the "company name" and "company link:\n{e.__str__()}\n')
         return company_name_link
+    
     
     def find_offered_salary(self, salary_selector:str='.job-detail-external-card .yn_price') -> list[int, int]:
         """Find offered job salary monthly in millions of Toman. Return 2-element list of [min-salary, max-salary].
@@ -224,8 +261,9 @@ class ExtractJob:
                     min_salary, max_salary = min(_salary_list), max(_salary_list)
                     return [min_salary, max_salary]
         except Exception as e:
-            print(f'Alert: Could not find "salary offered":\n{e.__str__()}')
+            print(f'Alert: Could not find "salary offered":\n{e.__str__()}\n')
         return [min_salary, max_salary]
+    
     
     def find_experience_needed(self, experience_selector:str='.job-specification .col.mr-2.px-0.word-break') -> int:
         """Find experience needed for the job. Return int as years. If no experience found or mentioned return 0"""
@@ -245,8 +283,9 @@ class ExtractJob:
                         if _.strip().isdigit():
                             exp = int(_.strip())
             except Exception as e:
-                print(f'Alert: Could not find "experience":\n{e.__str__()}')
+                print(f'Alert: Could not find "experience":\n{e.__str__()}\n')
         return exp
+    
     
     def find_age_suggestion(self, age_suggestion_selector:str='.job-specification .requirement-value.text-black.bg-light.py-2.px-3.ng-star-inserted') -> list[int, int]:
         """Find the applican age suggestion for the job. Return 2-element list as [min_age, max_age]. If no age suggestion found return [0, 0]"""
@@ -262,8 +301,9 @@ class ExtractJob:
                     min_age, max_age = min(_age_list), max(_age_list)
                     return [min_age, max_age]
         except Exception as e:
-            print(f'Alert: Could not find "age suggestion":\n{e.__str__()}')
+            print(f'Alert: Could not find "age suggestion":\n{e.__str__()}\n')
         return [min_age, max_age]
+    
     
     def find_gender(self, gender_selector:str='.job-specification .requirement-value.text-black.bg-light.py-2.px-3') -> str:
         """Find applicant gender. Return gender. If gender not found return empty string"""
@@ -276,8 +316,9 @@ class ExtractJob:
                 elif  ('مرد' in e.text.strip().lower() or 'men' in e.text.strip().lower()) and not ('زن' in e.text.strip().lower() or 'women' in e.text.strip().lower()):
                     gender = 'M'
         except Exception as e:
-            print(f'Alert: Could not find "gender": {e.__str__()}')
+            print(f'Alert: Could not find "gender": {e.__str__()}\n')
         return gender
+    
     
     def find_language(self, language_selector:str='.job-specification .requirement-value.bg-light.py-2.px-3') -> str:
         """Find language needed for the job. Return string. If no language found return empty string"""
@@ -296,8 +337,9 @@ class ExtractJob:
                 elif 'tu' in e.text.strip().lower() or 'ترک' in e.text.strip():
                     lang = 'Turkish'
         except Exception as e:
-            print(f'Alert: Could not found "language": {e.__str__()}')
+            print(f'Alert: Could not found "language": {e.__str__()}\n')
         return lang
+    
     
     def find_skills_needed(self, skills_selector:str='.row.col-11.px-0 div') -> list[str]:
         """Find needed skills"""
@@ -307,8 +349,9 @@ class ExtractJob:
             for e in elements:
                 skills_list.append(e.text.replace('-', ':'))
         except Exception as e:
-            print(f'Alert: Could not find the "skills": {e.__str__()}')
+            print(f'Alert: Could not find the "skills": {e.__str__()}\n')
         return skills_list
+    
     
     def find_education(self, education_selector:str='.job-specification .col-12.col-lg-9.px-lg-0 .tag.row.text-white.bg-secondary.rounded-sm.py-1.px-2.ml-2') -> list[str]:
         """Find education needed for the job. Return education as list. If education not found or not suggested return empty list."""
@@ -319,8 +362,9 @@ class ExtractJob:
                 if 'کارشناس' in e.text.strip() or 'کاردانی' in e.text.strip() or 'Bachelor' in e.text.split():
                     education.append(e.text.strip().replace('\n', ' ').replace('|', ':'))
         except Exception as e:
-            print(f'Alert: Could not find the "education": {e.__str__()}')
+            print(f'Alert: Could not find the "education": {e.__str__()}\n')
         return education
+    
     
     def find_job_describe(self, job_describe_selector:str='.col-12.row.text-black.px-0.mb-3') -> str:
         """Find job description. Return it as string. If not found return empty string"""
@@ -328,8 +372,69 @@ class ExtractJob:
         try:
             job_describe = self.driver.find_element(By.CSS_SELECTOR, job_describe_selector).text.strip()
         except Exception as e:
-            print(f'Alert: Could not find "job descrition": {job_describe}')
+            print(f'Alert: Could not find "job description": {job_describe}\n')
         return job_describe
+    
+    
+    def normalize_data_for_db(self, raw_data: dict) -> dict:
+        """Before insert extracted data from the job link into db, we should normalize it."""
+        try:
+            normalized_data = dict()
+            normalized_data.update({
+                'title': raw_data['title'],
+                'url': raw_data['url'],
+                'company_name': raw_data['company_name'],
+                'company_link': raw_data['company_link'],
+                'salary_min': raw_data['salary'][0],
+                'salary_max': raw_data['salary'][1],
+                'experience': raw_data['experience'],
+                'age_min': raw_data['age'][0],
+                'age_max': raw_data['age'][1],
+                'gender': raw_data['gender'],
+                'language': raw_data['language'],
+                'description': raw_data['description'],
+                'education': raw_data['education'],
+                'skill': raw_data['skills'],
+            })
+        except Exception as e:
+            print('Error in "joblisings.jobvision_ir.ExtractJob._normalize_data_for_db":\n', e.__str__(), '\n')
+        return normalized_data
+    
+    
+    def insert_data_into_sqlite(self, normalized_data: dict) -> bool:
+        """Insert normalized data into sqlite database."""
+        try:
+            sc: SqlliteConnection = SqlliteConnection()
+            # If first time to connect to db, try to create all the needed tables
+            sc.get_or_create_job()
+            sc.get_or_create_education()
+            sc.get_or_create_skill()
+            
+            # Insert data into tables
+            proccess_data_dict = {'education': normalized_data.pop('education'), 'skill': normalized_data.pop('skill')}
+            job_id = sc.insert_job(data=normalized_data)
+            print('job_id: ', job_id)
+            pej: ProcessExtractedJobData = ProcessExtractedJobData(data=proccess_data_dict)
+            
+            # Insert 'education' into db
+            education_list = pej.education()
+            for edu_list in education_list:
+                edu_data = {'degree': edu_list[0], 'course': edu_list[1]}
+                education_id = sc.insert_education(data=edu_data, job_id=job_id)
+                # print('education_id: ', education_id)
+                
+            # Insert 'skill' into db
+            skill_list = pej.skill()
+            for ski_list in skill_list:
+                ski_data = {'skill_name': ski_list[0], 'skill_level': ski_list[1]}
+                skill_id = sc.insert_skill(data=ski_data, job_id=job_id)
+                # print('skill_id: ', skill_id)
+                
+            return True
+        except Exception as e:
+            print(f'Error in "joblistings.jobvision_ir.ExtractJob.insert_data_into_sqlite":\n{e.__str__()}\n')
+            return False
+
 
 
 class ProcessExtractedJobData:
@@ -338,6 +443,7 @@ class ProcessExtractedJobData:
     def __init__(self, data:dict):
         self.data = data
 
+    
     def education(self) -> list[list[str, str]]:
         """Process the education data extracted from 'jobvision.ir' website and insert the data into 'education' table.\n
         If successful returns list of lists. Each inner list is a 2-element string. First element is degree and the
@@ -362,6 +468,7 @@ class ProcessExtractedJobData:
             print('Error in joblistings.jobvision.ProcessExtractedJobData.education:\n', e.__str__())
         return education_list_processed
     
+    
     def skill(self) -> list[list[str, str]]:
         """Process the skill data extracted from 'jobvision.ir' website and insert the data into 'skill' table.\n
         If successful returns list of lists. Each inner list is a 2-element string. First element is skill_name and the
@@ -384,6 +491,7 @@ class ProcessExtractedJobData:
         except Exception as e:
             print('Error in joblistings.jobvision.ProcessExtractedJobData.skill:\n', e.__str__())
         return skill_list_processed
+    
     
     def description(self) -> object:
         pass
