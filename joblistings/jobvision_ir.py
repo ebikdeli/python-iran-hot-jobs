@@ -22,22 +22,12 @@ class ExtractWebsite:
         self.driver = None
     
     
-    def start_driver(self) -> WebDriver|None:
-        """Start webdriver"""
-        try:
-            self.driver = call_selenium_driver(headless=1)
-        except Exception as e:
-            print('Problem with selenium:\n', e.__str__())
-            return None
-        return self.driver
-    
-    
     def start(self) -> str:
         """Extract jobvision.ir jobs"""
         print(f'Call the joblisting website for the "{self.site_url}"')
         try:
             # Start chrome driver
-            self.driver = self.start_driver()
+            self.driver = self._start_driver()
             if not self.driver:
                 return 'Exit the program for error in running selenium driver'
             
@@ -82,11 +72,11 @@ class ExtractWebsite:
                 # Load the 'job_url' with 'driver'
                 self.driver.get(job_url)
                 # Extract the job and scrap all needed data from the job url
-                ej = ExtractJob(driver=self.driver, job_url=job_url)
-                raw_data = ej.start_extraction(description=False)
+                erj = ExtractRawJob(driver=self.driver, job_url=job_url)
+                raw_data = erj.start_extraction(description=False)
                 # Insert data into the database
-                normalized_data = ej.normalize_data_for_db(raw_data)
-                result = ej.insert_data_into_sqlite(normalized_data)
+                normalized_data = normalize_data_for_db(raw_data)
+                result = insert_data_into_sqlite(normalized_data)
             # !!!!!!!!!!!
             
         except Exception as e:
@@ -96,6 +86,16 @@ class ExtractWebsite:
         # Close connection
         self.driver.close()
         return 'OK'
+    
+    
+    def _start_driver(self) -> WebDriver|None:
+        """Start webdriver"""
+        try:
+            self.driver = call_selenium_driver(headless=1)
+        except Exception as e:
+            print('Problem with selenium:\n', e.__str__())
+            return None
+        return self.driver
     
     
     def _get_job_links(self, job_link_set:set, page_number:int, _job_card_css_selector:str='job-card > a', _pagination_css_selector:str='.pagination-page.page-item.active') -> set:
@@ -177,8 +177,8 @@ class ExtractWebsite:
 
 
 
-class ExtractJob:
-    """In job page, extract all data from a single_page page."""
+class ExtractRawJob:
+    """In job page, extract all raw data from a single_page page."""
     def __init__(self, driver: WebDriver, job_url: str) -> None:
         """'driver' contains the html data from job_url"""
         self.driver = driver
@@ -374,66 +374,6 @@ class ExtractJob:
         except Exception as e:
             print(f'Alert: Could not find "job description": {job_describe}\n')
         return job_describe
-    
-    
-    def normalize_data_for_db(self, raw_data: dict) -> dict:
-        """Before insert extracted data from the job link into db, we should normalize it."""
-        try:
-            normalized_data = dict()
-            normalized_data.update({
-                'title': raw_data['title'],
-                'url': raw_data['url'],
-                'company_name': raw_data['company_name'],
-                'company_link': raw_data['company_link'],
-                'salary_min': raw_data['salary'][0],
-                'salary_max': raw_data['salary'][1],
-                'experience': raw_data['experience'],
-                'age_min': raw_data['age'][0],
-                'age_max': raw_data['age'][1],
-                'gender': raw_data['gender'],
-                'language': raw_data['language'],
-                'description': raw_data['description'],
-                'education': raw_data['education'],
-                'skill': raw_data['skills'],
-            })
-        except Exception as e:
-            print('Error in "joblisings.jobvision_ir.ExtractJob._normalize_data_for_db":\n', e.__str__(), '\n')
-        return normalized_data
-    
-    
-    def insert_data_into_sqlite(self, normalized_data: dict) -> bool:
-        """Insert normalized data into sqlite database."""
-        try:
-            sc: SqlliteConnection = SqlliteConnection()
-            # If first time to connect to db, try to create all the needed tables
-            sc.get_or_create_job()
-            sc.get_or_create_education()
-            sc.get_or_create_skill()
-            
-            # Insert data into tables
-            proccess_data_dict = {'education': normalized_data.pop('education'), 'skill': normalized_data.pop('skill')}
-            job_id = sc.insert_job(data=normalized_data)
-            print('job_id: ', job_id)
-            pej: ProcessExtractedJobData = ProcessExtractedJobData(data=proccess_data_dict)
-            
-            # Insert 'education' into db
-            education_list = pej.education()
-            for edu_list in education_list:
-                edu_data = {'degree': edu_list[0], 'course': edu_list[1]}
-                education_id = sc.insert_education(data=edu_data, job_id=job_id)
-                # print('education_id: ', education_id)
-                
-            # Insert 'skill' into db
-            skill_list = pej.skill()
-            for ski_list in skill_list:
-                ski_data = {'skill_name': ski_list[0], 'skill_level': ski_list[1]}
-                skill_id = sc.insert_skill(data=ski_data, job_id=job_id)
-                # print('skill_id: ', skill_id)
-                
-            return True
-        except Exception as e:
-            print(f'Error in "joblistings.jobvision_ir.ExtractJob.insert_data_into_sqlite":\n{e.__str__()}\n')
-            return False
 
 
 
@@ -463,6 +403,10 @@ class ProcessExtractedJobData:
                 course = course.strip()
                 # ! Check if there are more than one education is in the 'course' separated by '/' (For now we ignore separation)
                 # !!!!!!!!!!!!!    MORE PROCESS HERE IF NEEDED    !!!!!!!!!!!!!!!!!
+                
+                degree = equivalence_education_degree(degree)
+                course = equivalence_education_course(course)
+                
                 education_list_processed.append([degree, course])
         except Exception as e:
             print('Error in joblistings.jobvision.ProcessExtractedJobData.education:\n', e.__str__())
@@ -487,6 +431,10 @@ class ProcessExtractedJobData:
                 skill_name = skill_name.strip()
                 skill_level = skill_level.strip()
                 # !!!!!!!!!!!!!    MORE PROCESS HERE IF NEEDED    !!!!!!!!!!!!!!!!!
+                
+                skill_name = equivalence_skill_name(skill_name)
+                skill_level = equivalence_skill_level(skill_level)
+                
                 skill_list_processed.append([skill_name, skill_level])
         except Exception as e:
             print('Error in joblistings.jobvision.ProcessExtractedJobData.skill:\n', e.__str__())
@@ -495,3 +443,121 @@ class ProcessExtractedJobData:
     
     def description(self) -> object:
         pass
+
+
+
+# ???????????????????????????????????   Independent functions   ???????????????????????????????????
+
+def normalize_data_for_db(raw_data: dict) -> dict:
+    """Before insert extracted data from the job link into db, we should normalize it."""
+    try:
+        normalized_data = dict()
+        normalized_data.update({
+            'title': raw_data['title'],
+            'url': raw_data['url'],
+            'company_name': raw_data['company_name'],
+            'company_link': raw_data['company_link'],
+            'salary_min': raw_data['salary'][0],
+            'salary_max': raw_data['salary'][1],
+            'experience': raw_data['experience'],
+            'age_min': raw_data['age'][0],
+            'age_max': raw_data['age'][1],
+            'gender': raw_data['gender'],
+            'language': raw_data['language'],
+            'description': raw_data['description'],
+            'education': raw_data['education'],
+            'skill': raw_data['skills'],
+        })
+        
+    except Exception as e:
+        print('Error in "joblisings.jobvision_ir.ExtractJob._normalize_data_for_db":\n', e.__str__(), '\n')
+        
+    return normalized_data
+
+
+
+def insert_data_into_sqlite(normalized_data: dict) -> bool:
+    """Insert normalized data into sqlite database."""
+    try:
+        sc: SqlliteConnection = SqlliteConnection()
+        # If first time to connect to db, try to create all the needed tables
+        sc.get_or_create_job()
+        sc.get_or_create_education()
+        sc.get_or_create_skill()
+        
+        # Insert data into tables
+        proccess_data_dict = {'education': normalized_data.pop('education'), 'skill': normalized_data.pop('skill')}
+        job_id = sc.insert_job(data=normalized_data)
+        # print('job_id: ', job_id)
+        pej: ProcessExtractedJobData = ProcessExtractedJobData(data=proccess_data_dict)
+        
+        # Insert 'education' into db
+        education_list = pej.education()
+        for edu_list in education_list:
+            edu_data = {'degree': edu_list[0], 'course': edu_list[1]}
+            education_id = sc.insert_education(data=edu_data, job_id=job_id)
+            # print('education_id: ', education_id)
+            
+        # Insert 'skill' into db
+        skill_list = pej.skill()
+        for ski_list in skill_list:
+            ski_data = {'skill_name': ski_list[0], 'skill_level': ski_list[1]}
+            skill_id = sc.insert_skill(data=ski_data, job_id=job_id)
+            # print('skill_id: ', skill_id)
+            
+        return True
+    except Exception as e:
+        print(f'Error in "joblistings.jobvision_ir.ExtractJob.insert_data_into_sqlite":\n{e.__str__()}\n')
+        return False
+
+
+
+# ???????????????????????????????????   Equivalence functions ?????????????????????????????????????
+
+def equivalence_education_degree(degree: str) -> str:
+    """Equivalence education degree to a standard value."""
+    try:
+        equil_dict = {'لیسانس': 'Bachelor', 'فوق لیسانس': 'Master', 'کارشناسی': 'Bachelor'}
+        if degree in equil_dict.keys():
+            degree = equil_dict[degree]
+    
+    except Exception as e:
+        print('Error in "joblisings.jobvision_ir.equivalence_education_degree"')
+    
+    return degree
+
+
+
+def equivalence_education_course(course: str) -> str:
+    """Equivalence education course to a standard value."""
+    try:
+        pass
+    
+    except Exception as e:
+        print('Error in "joblisings.jobvision_ir.equivalence_education_course"')
+    
+    return course
+
+
+
+def equivalence_skill_name(skill_name: str) -> str:
+    """Equivalence skill name to a standard value."""
+    try:
+        pass
+    
+    except Exception as e:
+        print('Error in "joblisings.jobvision_ir.equivalence_skill_name"')
+    
+    return skill_name
+
+
+
+def equivalence_skill_level(skill_level: str) -> str:
+    """Equivalence skill level to a standard value."""
+    try:
+        pass
+    
+    except Exception as e:
+        print('Error in "joblisings.jobvision_ir.equivalence_skill_level"')
+    
+    return skill_level
