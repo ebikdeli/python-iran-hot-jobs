@@ -25,7 +25,7 @@ class ExtractWebsite:
     
     def start(self) -> str:
         """Extract jobvision.ir jobs"""
-        print(f'Call the joblisting website for the "{self.site_url}"')
+        print(f'Call the joblisting website for the "{self.site_url}"\n')
         try:
             # Start chrome driver
             self.driver = self._start_driver()
@@ -52,14 +52,14 @@ class ExtractWebsite:
                     # ! Get all the 'job_title' jobs in jobvision search
                     job_link_set = self._get_job_links(job_link_set, page_number)
                     # ! Process the every job links extracted
-                    print(f'Number of jobs found for "{self.job_title}" job title: {len(job_link_set)}')
+                    print(f'Number of jobs found for "{self.job_title}" job title: {len(job_link_set)}\n')
                     # To not repeat the above process again and save resources for a day, save the extracted job links into a file
                     if not self._write_link_into_file(job_link_set):
                         self.driver.close()
                         return 'Could not enter job links into the related file'
                 else:
                     job_link_set = self._read_link_from_file(job_link_set)
-                    print(f'Number of job links found in the file is "{len(job_link_set)}"')
+                    print(f'Number of job links found in the file is "{len(job_link_set)}"\n')
                     
             # Add the single_link to the 'job_link_set' to just scrap that page
             else:
@@ -69,7 +69,7 @@ class ExtractWebsite:
             # Extracted all specified data from every job page link in the 'job_link_set'
             # !!!!!!!!!!!!
             for job_url in job_link_set:
-                print(f'Extracting link:\n"{job_url}"\n')
+                print(f'Extract job link:\n"{job_url}"\n')
                 # Load the 'job_url' with 'driver'
                 self.driver.get(job_url)
                 # Extract the job and scrap all needed data from the job url
@@ -81,7 +81,7 @@ class ExtractWebsite:
             # !!!!!!!!!!!
             
         except Exception as e:
-            print(f'Error in "joblistings.jobvision_ir.ExtractWebsite.start":\n{e.__str__()}')
+            print(f'Error in "joblistings.jobvision_ir.ExtractWebsite.start":\n{e.__str__()}\n')
             return 'failed'
         
         # Close connection
@@ -94,7 +94,7 @@ class ExtractWebsite:
         try:
             self.driver = call_selenium_driver(headless=1)
         except Exception as e:
-            print('Problem with selenium:\n', e.__str__())
+            print('Problem with selenium:\n', e.__str__(), '\n')
             return None
         return self.driver
     
@@ -115,13 +115,13 @@ class ExtractWebsite:
                     self.driver.find_element(By.CSS_SELECTOR, _pagination_css_selector)
                     page_number += 1
                 except NoSuchElementException:
-                    print(f'No element found as "{_pagination_css_selector}" or no page remains')
+                    print(f'No element found as "{_pagination_css_selector}" or no page remains\n')
                     return job_link_set
                 except Exception as e:
-                    print(e.__str__())
+                    print(e.__str__(), '\n')
                     return job_link_set
         except Exception as e:
-            print(f'Problem in scraping below url:\n{search_url}\nError:\n{e.__str__()}')
+            print(f'Problem in scraping below url:\n{search_url}\nError:\n{e.__str__()}\n')
             return job_link_set
     
     
@@ -141,7 +141,7 @@ class ExtractWebsite:
         except Exception:
             with open(f'{os.path.join(current_directory, job_link_file_name)}', 'wt') as f:
                 f.write(datetime.date.today().strftime('%Y-%m-%d'))
-            print('Jobvision job list file just created')
+            print('Jobvision job list file just created\n')
         return False
     
     
@@ -154,10 +154,10 @@ class ExtractWebsite:
                 f.write(datetime.date.today().strftime('%Y-%m-%d'))
                 for ul in job_link_set:
                     f.write(f"{'\n\n' + ul}")
-            print('Successfully entered job urls into file')
+            print('Successfully entered job urls into file\n')
             return True
         except Exception as e:
-            print('A problem happend:\n', e.__str__())
+            print('A problem happend:\n', e.__str__(), '\n')
             return False
     
     
@@ -171,9 +171,9 @@ class ExtractWebsite:
             for d in data:
                 if d.startswith('http'):
                     job_link_set.add(d.strip().replace('\n', ''))
-            print('Successfully read job urls from the file')
+            print('Successfully read job urls from the file\n')
         except Exception as e:
-            print('A problem happend:\n', e.__str__())
+            print('A problem happend:\n', e.__str__(), '\n')
         return job_link_set
 
 
@@ -231,6 +231,7 @@ class ExtractRawJob:
             title = self.driver.find_element(By.CSS_SELECTOR, title_selector).text
         except Exception as e:
             print(f'Alert: Could not find the "job title":\n{e.__str__()}\n')
+            # print(f'Alert: Could not find the "job title"\n')
         return title
     
     
@@ -244,6 +245,7 @@ class ExtractRawJob:
             company_name_link.append(self.driver.find_element(By.CSS_SELECTOR, company_selector).get_attribute('href'))
         except Exception as e:
             print(f'Alert: Could not find the "company name" and "company link:\n{e.__str__()}\n')
+            # print(f'Alert: Could not find the "company name" and "company link"\n')
         return company_name_link
     
     
@@ -262,7 +264,8 @@ class ExtractRawJob:
                     min_salary, max_salary = min(_salary_list), max(_salary_list)
                     return [min_salary, max_salary]
         except Exception as e:
-            print(f'Alert: Could not find "salary offered":\n{e.__str__()}\n')
+            # print(f'Alert: Could not find "salary offered":\n{e.__str__()}\n')
+            print(f'Alert: Could not find "salary offered":\n')
         return [min_salary, max_salary]
     
     
@@ -284,7 +287,8 @@ class ExtractRawJob:
                         if _.strip().isdigit():
                             exp = int(_.strip())
             except Exception as e:
-                print(f'Alert: Could not find "experience":\n{e.__str__()}\n')
+                # print(f'Alert: Could not find "experience":\n{e.__str__()}\n')
+                print(f'Alert: Could not find "experience":\n')
         return exp
     
     
@@ -302,7 +306,8 @@ class ExtractRawJob:
                     min_age, max_age = min(_age_list), max(_age_list)
                     return [min_age, max_age]
         except Exception as e:
-            print(f'Alert: Could not find "age suggestion":\n{e.__str__()}\n')
+            # print(f'Alert: Could not find "age suggestion":\n{e.__str__()}\n')
+            print(f'Alert: Could not find "age suggestion":\n')
         return [min_age, max_age]
     
     
@@ -317,7 +322,8 @@ class ExtractRawJob:
                 elif  ('مرد' in e.text.strip().lower() or 'men' in e.text.strip().lower()) and not ('زن' in e.text.strip().lower() or 'women' in e.text.strip().lower()):
                     gender = 'M'
         except Exception as e:
-            print(f'Alert: Could not find "gender": {e.__str__()}\n')
+            # print(f'Alert: Could not find "gender": {e.__str__()}\n')
+            print(f'Alert: Could not find "gender"\n')
         return gender
     
     
@@ -338,7 +344,8 @@ class ExtractRawJob:
                 elif 'tu' in e.text.strip().lower() or 'ترک' in e.text.strip():
                     lang = 'Turkish'
         except Exception as e:
-            print(f'Alert: Could not found "language": {e.__str__()}\n')
+            # print(f'Alert: Could not found "language": {e.__str__()}\n')
+            print(f'Alert: Could not found "language"\n')
         return lang
     
     
@@ -350,7 +357,8 @@ class ExtractRawJob:
             for e in elements:
                 skills_list.append(e.text.replace('-', ':'))
         except Exception as e:
-            print(f'Alert: Could not find the "skills": {e.__str__()}\n')
+            # print(f'Alert: Could not find the "skills": {e.__str__()}\n')
+            print(f'Alert: Could not find the "skills"\n')
         return skills_list
     
     
@@ -363,7 +371,8 @@ class ExtractRawJob:
                 if 'کارشناس' in e.text.strip() or 'کاردانی' in e.text.strip() or 'Bachelor' in e.text.split():
                     education.append(e.text.strip().replace('\n', ' ').replace('|', ':'))
         except Exception as e:
-            print(f'Alert: Could not find the "education": {e.__str__()}\n')
+            # print(f'Alert: Could not find the "education": {e.__str__()}\n')
+            print(f'Alert: Could not find the "education"\n')
         return education
     
     
@@ -373,7 +382,8 @@ class ExtractRawJob:
         try:
             job_describe = self.driver.find_element(By.CSS_SELECTOR, job_describe_selector).text.strip()
         except Exception as e:
-            print(f'Alert: Could not find "job description": {job_describe}\n')
+            # print(f'Alert: Could not find "job description": {job_describe}\n')
+            print(f'Alert: Could not find "job description"\n')
         return job_describe
 
 
@@ -395,7 +405,7 @@ class ProcessExtractedJobData:
             education_list_processed = list()
             _education_list: list[str]|None = self.data.get('education', None)
             if not _education_list:
-                print('No education found for the job...')
+                print('No education found for the job...\n')
             # Process each job separately. 'education_list' is like this:
             # ['Bachelor : Computer and IT' , 'Bachelor : Electrical Engineering' , 'Bachelor : Finance/Accounting']
             for _education_str in _education_list:
@@ -410,7 +420,7 @@ class ProcessExtractedJobData:
                 
                 education_list_processed.append([degree, course])
         except Exception as e:
-            print('Error in joblistings.jobvision.ProcessExtractedJobData.education:\n', e.__str__())
+            print('Error in joblistings.jobvision.ProcessExtractedJobData.education:\n', e.__str__(), '\n')
         return education_list_processed
     
     
@@ -438,7 +448,7 @@ class ProcessExtractedJobData:
                 
                 skill_list_processed.append([skill_name, skill_level])
         except Exception as e:
-            print('Error in joblistings.jobvision.ProcessExtractedJobData.skill:\n', e.__str__())
+            print('Error in joblistings.jobvision.ProcessExtractedJobData.skill:\n', e.__str__(), '\n')
         return skill_list_processed
     
     
@@ -489,7 +499,7 @@ def insert_data_into_sqlite(normalized_data: dict) -> bool:
         # Insert data into tables
         proccess_data_dict = {'education': normalized_data.pop('education'), 'skill': normalized_data.pop('skill')}
         job_id = sc.insert_job(data=normalized_data)
-        # print('job_id: ', job_id)
+        print('job_id: ', job_id)
         pej: ProcessExtractedJobData = ProcessExtractedJobData(data=proccess_data_dict)
         
         # Insert 'education' into db
