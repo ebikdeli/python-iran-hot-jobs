@@ -6,6 +6,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.common.exceptions import NoSuchElementException
 from database.sqlite_connector import SqlliteConnection
+from . import _equivalence
 from time import sleep
 import datetime
 import pathlib
@@ -517,9 +518,8 @@ def insert_data_into_sqlite(normalized_data: dict) -> bool:
 def equivalence_education_degree(degree: str) -> str:
     """Equivalence education degree to a standard value."""
     try:
-        equil_dict = {'لیسانس': 'Bachelor', 'فوق لیسانس': 'Master', 'کارشناسی': 'Bachelor'}
-        if degree in equil_dict.keys():
-            degree = equil_dict[degree]
+        if degree in _equivalence.EDUCATION_DEGREE.keys():
+            degree = _equivalence.EDUCATION_DEGREE[degree]
     
     except Exception as e:
         print('Error in "joblisings.jobvision_ir.equivalence_education_degree"')
@@ -531,7 +531,8 @@ def equivalence_education_degree(degree: str) -> str:
 def equivalence_education_course(course: str) -> str:
     """Equivalence education course to a standard value."""
     try:
-        pass
+        if course in _equivalence.EDUCATION_COURSE.keys():
+            course = _equivalence.EDUCATION_COURSE[course]
     
     except Exception as e:
         print('Error in "joblisings.jobvision_ir.equivalence_education_course"')
@@ -543,7 +544,8 @@ def equivalence_education_course(course: str) -> str:
 def equivalence_skill_name(skill_name: str) -> str:
     """Equivalence skill name to a standard value."""
     try:
-        pass
+        if skill_name in _equivalence.SKILL_NAME.keys():
+            skill_name = _equivalence.SKILL_NAME[skill_name]
     
     except Exception as e:
         print('Error in "joblisings.jobvision_ir.equivalence_skill_name"')
@@ -555,7 +557,8 @@ def equivalence_skill_name(skill_name: str) -> str:
 def equivalence_skill_level(skill_level: str) -> str:
     """Equivalence skill level to a standard value."""
     try:
-        pass
+        if skill_level in _equivalence.SKILL_LEVEL.keys():
+            skill_level = _equivalence.SKILL_LEVEL[skill_level]
     
     except Exception as e:
         print('Error in "joblisings.jobvision_ir.equivalence_skill_level"')
