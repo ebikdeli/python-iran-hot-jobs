@@ -6,7 +6,7 @@ import os
 import datetime
 
 
-class SqlliteConnection:
+class SqliteConnection:
     """Automate connection to sqllite db"""
     def __init__(self, db:str='hot_jobs.db'):
         """We use the approach of having a single sql cursor throught the application."""
@@ -15,6 +15,10 @@ class SqlliteConnection:
         self._cursor: Cursor = None
         self.make_connect()
         self.make_cursor()
+        # Create every needed table in the first connection
+        self.get_or_create_job()
+        self.get_or_create_education()
+        self.get_or_create_skill()
     
     
     def make_connect(self) -> Connection|None:
@@ -68,7 +72,7 @@ class SqlliteConnection:
             _sql = f"""CREATE TABLE IF NOT EXISTS job(
             id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
             title VARCHAR(255) NOT NULL,
-            url VARCHAR(1000) NOT NULL,
+            url VARCHAR(1000) NOT NULL UNIQUE,
             company_name VARCHAR(255) NOT NULL,
             company_link VARCHAR(1000),
             salary_min DECIMAL(12,0) DEFAULT 0,
@@ -103,6 +107,20 @@ class SqlliteConnection:
             return _latest_job_id
         except Exception as e:
             print(f'Cannot insert data into "job" table:\n{e.__str__()}\n')
+            return None
+    
+    
+    def check_job_url(self, job_url: str) -> str|None:
+        """Check if 'job_url' is already in the db.\n
+        If job_url found in the db return job.id of the founded row. If not found return None."""
+        try:
+            
+            _sql = f"SELECT id FROM job WHERE url = '{job_url}'"
+            self._cursor.execute(_sql)
+            row_id = self._cursor.fetchone()
+            return row_id
+        except Exception as e:
+            print('Error in "database.sqlite_connector.SqliteConnction.check_job_url":\n', e.__str__(), '\n')
             return None
     
     

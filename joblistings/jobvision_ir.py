@@ -5,7 +5,7 @@ from save_data.save_csv import into_csv
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.common.exceptions import NoSuchElementException
-from database.sqlite_connector import SqlliteConnection
+from database.sqlite_connector import SqliteConnection
 from . import _equivalence
 from time import sleep
 import datetime
@@ -16,11 +16,12 @@ import os
 
 class ExtractWebsite:
     """Extract data from jobvision.ir website."""
-    def __init__(self, site_url:str, job_title:str='python', single_link:str='') -> None:
+    def __init__(self, site_url:str, job_title:str='python', single_link:str='', sql_db='sqlite') -> None:
         self.site_url = site_url
         self.job_title = job_title
         self.single_link = single_link
         self.driver = None
+        self.sql_db = sql_db
     
     
     def start(self) -> str:
@@ -31,6 +32,9 @@ class ExtractWebsite:
             self.driver = self._start_driver()
             if not self.driver:
                 return 'Exit the program for error in running selenium driver'
+            # Start database connector
+            if self.sql_db == 'sqlite':
+                db_connector = SqliteConnection()
             
             # Check if there is a job link in 'self.single_link' just scrap the link and ignore all the links in the website
             if not self.single_link:
@@ -69,6 +73,10 @@ class ExtractWebsite:
             # Extracted all specified data from every job page link in the 'job_link_set'
             # !!!!!!!!!!!!
             for job_url in job_link_set:
+                # Check if 'job_url' is already in the database 
+                if db_connector.check_job_url(job_url=job_url):
+                    print('Job link:\n', job_url, '\n', 'is already in the jobs table...\n')
+                    continue
                 print(f'Extract job link:\n"{job_url}"\n')
                 # Load the 'job_url' with 'driver'
                 self.driver.get(job_url)
@@ -77,7 +85,7 @@ class ExtractWebsite:
                 raw_data = erj.start_extraction(description=False)
                 # Insert data into the database
                 normalized_data = normalize_data_for_db(raw_data)
-                result = insert_data_into_sqlite(normalized_data)
+                result = insert_data_into_sqlite(db_connector, normalized_data)
             # !!!!!!!!!!!
             
         except Exception as e:
@@ -85,6 +93,8 @@ class ExtractWebsite:
             return 'failed'
         
         # Close connection
+        db_connector.close_connect()
+        # Close driver
         self.driver.close()
         return 'OK'
     
@@ -487,18 +497,12 @@ def normalize_data_for_db(raw_data: dict) -> dict:
 
 
 
-def insert_data_into_sqlite(normalized_data: dict) -> bool:
+def insert_data_into_sqlite(sqlite_connector: SqliteConnection, normalized_data: dict) -> bool:
     """Insert normalized data into sqlite database."""
     try:
-        sc: SqlliteConnection = SqlliteConnection()
-        # If first time to connect to db, try to create all the needed tables
-        sc.get_or_create_job()
-        sc.get_or_create_education()
-        sc.get_or_create_skill()
-        
         # Insert data into tables
         proccess_data_dict = {'education': normalized_data.pop('education'), 'skill': normalized_data.pop('skill')}
-        job_id = sc.insert_job(data=normalized_data)
+        job_id = sqlite_connector.insert_job(data=normalized_data)
         print('job_id: ', job_id)
         pej: ProcessExtractedJobData = ProcessExtractedJobData(data=proccess_data_dict)
         
@@ -506,14 +510,14 @@ def insert_data_into_sqlite(normalized_data: dict) -> bool:
         education_list = pej.education()
         for edu_list in education_list:
             edu_data = {'degree': edu_list[0], 'course': edu_list[1]}
-            education_id = sc.insert_education(data=edu_data, job_id=job_id)
+            education_id = sqlite_connector.insert_education(data=edu_data, job_id=job_id)
             # print('education_id: ', education_id)
             
         # Insert 'skill' into db
         skill_list = pej.skill()
         for ski_list in skill_list:
             ski_data = {'skill_name': ski_list[0], 'skill_level': ski_list[1]}
-            skill_id = sc.insert_skill(data=ski_data, job_id=job_id)
+            skill_id = sqlite_connector.insert_skill(data=ski_data, job_id=job_id)
             # print('skill_id: ', skill_id)
             
         return True
