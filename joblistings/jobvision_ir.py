@@ -16,12 +16,12 @@ import os
 
 class ExtractWebsite:
     """Extract data from jobvision.ir website."""
-    def __init__(self, site_url:str, job_title:str='python', single_link:str='', sql_db='sqlite') -> None:
+    def __init__(self, site_url:str, job_title:str='python', single_link:str='', db_engine='sqlite') -> None:
         self.site_url = site_url
         self.job_title = job_title
         self.single_link = single_link
         self.driver = None
-        self.sql_db = sql_db
+        self.db_engine = db_engine
     
     
     def start(self) -> str:
@@ -33,7 +33,7 @@ class ExtractWebsite:
             if not self.driver:
                 return 'Exit the program for error in running selenium driver'
             # Start database connector
-            if self.sql_db == 'sqlite':
+            if self.db_engine == 'sqlite':
                 db_connector = SqliteConnection()
             
             # Check if there is a job link in 'self.single_link' just scrap the link and ignore all the links in the website
@@ -70,12 +70,11 @@ class ExtractWebsite:
                 job_link_set = set()
                 job_link_set.add(self.single_link)
                 
-            # Extracted all specified data from every job page link in the 'job_link_set'
-            # !!!!!!!!!!!!
+            # !!!!!!!!!! Extract all specified data from every job page link in the 'job_link_set'
             for job_url in job_link_set:
                 # Check if 'job_url' is already in the database 
-                if db_connector.check_job_url(job_url=job_url):
-                    print('Job link:\n', job_url, '\n', 'is already in the jobs table...\n')
+                if db_connector.check_job_url(job_url=job_url.strip()):
+                    print('Job link:\n', '"', job_url, '"', '\n', 'is already in the "job" table...\n')
                     continue
                 print(f'Extract job link:\n"{job_url}"\n')
                 # Load the 'job_url' with 'driver'
@@ -85,18 +84,17 @@ class ExtractWebsite:
                 raw_data = erj.start_extraction(description=False)
                 # Insert data into the database
                 normalized_data = normalize_data_for_db(raw_data)
-                result = insert_data_into_sqlite(db_connector, normalized_data)
-            # !!!!!!!!!!!
+                insert_data_into_sqlite(db_connector, normalized_data)
             
         except Exception as e:
             print(f'Error in "joblistings.jobvision_ir.ExtractWebsite.start":\n{e.__str__()}\n')
-            return 'failed'
+            return 'FAILURE'
         
         # Close connection
         db_connector.close_connect()
         # Close driver
         self.driver.close()
-        return 'OK'
+        return 'SUCCESS'
     
     
     def _start_driver(self) -> WebDriver|None:
@@ -425,8 +423,8 @@ class ProcessExtractedJobData:
                 # ! Check if there are more than one education is in the 'course' separated by '/' (For now we ignore separation)
                 # !!!!!!!!!!!!!    MORE PROCESS HERE IF NEEDED    !!!!!!!!!!!!!!!!!
                 
-                degree = equivalence_education_degree(degree)
-                course = equivalence_education_course(course)
+                degree = _equivalence.equivalence_education_degree(degree)
+                course = _equivalence.equivalence_education_course(course)
                 
                 education_list_processed.append([degree, course])
         except Exception as e:
@@ -453,8 +451,8 @@ class ProcessExtractedJobData:
                 skill_level = skill_level.strip()
                 # !!!!!!!!!!!!!    MORE PROCESS HERE IF NEEDED    !!!!!!!!!!!!!!!!!
                 
-                skill_name = equivalence_skill_name(skill_name)
-                skill_level = equivalence_skill_level(skill_level)
+                skill_name = _equivalence.equivalence_skill_name(skill_name)
+                skill_level = _equivalence.equivalence_skill_level(skill_level)
                 
                 skill_list_processed.append([skill_name, skill_level])
         except Exception as e:
@@ -524,57 +522,3 @@ def insert_data_into_sqlite(sqlite_connector: SqliteConnection, normalized_data:
     except Exception as e:
         print(f'Error in "joblistings.jobvision_ir.ExtractJob.insert_data_into_sqlite":\n{e.__str__()}\n')
         return False
-
-
-
-# ???????????????????????????????????   Equivalence functions ?????????????????????????????????????
-
-def equivalence_education_degree(degree: str) -> str:
-    """Equivalence education degree to a standard value."""
-    try:
-        if degree in _equivalence.EDUCATION_DEGREE.keys():
-            degree = _equivalence.EDUCATION_DEGREE[degree]
-    
-    except Exception as e:
-        print('Error in "joblisings.jobvision_ir.equivalence_education_degree"')
-    
-    return degree
-
-
-
-def equivalence_education_course(course: str) -> str:
-    """Equivalence education course to a standard value."""
-    try:
-        if course in _equivalence.EDUCATION_COURSE.keys():
-            course = _equivalence.EDUCATION_COURSE[course]
-    
-    except Exception as e:
-        print('Error in "joblisings.jobvision_ir.equivalence_education_course"')
-    
-    return course
-
-
-
-def equivalence_skill_name(skill_name: str) -> str:
-    """Equivalence skill name to a standard value."""
-    try:
-        if skill_name in _equivalence.SKILL_NAME.keys():
-            skill_name = _equivalence.SKILL_NAME[skill_name]
-    
-    except Exception as e:
-        print('Error in "joblisings.jobvision_ir.equivalence_skill_name"')
-    
-    return skill_name
-
-
-
-def equivalence_skill_level(skill_level: str) -> str:
-    """Equivalence skill level to a standard value."""
-    try:
-        if skill_level in _equivalence.SKILL_LEVEL.keys():
-            skill_level = _equivalence.SKILL_LEVEL[skill_level]
-    
-    except Exception as e:
-        print('Error in "joblisings.jobvision_ir.equivalence_skill_level"')
-    
-    return skill_level
