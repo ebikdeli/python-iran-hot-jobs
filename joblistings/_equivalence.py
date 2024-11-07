@@ -28,6 +28,8 @@ EDUCATION_COURSE: dict[str, str] = {
     'مهندسی پزشکی': 'Medical Engineering',
     'مهندسی نفت / مهندسی انرژی': 'Petroleum Engineering/Energy Engineering',
     'مهندسی نساجی': 'Textile engineering',
+    'مهندسی مواد و متالورژی': 'Materials engineering',
+    'فیزیک': 'Physics',
 }
 
 

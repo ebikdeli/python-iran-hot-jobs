@@ -1,7 +1,6 @@
 """Extract data for all the jobs related to the job_title from the 'jobvision.ir' and process the extracted data."""
 
 from drivers.selenium_driver import call_selenium_driver
-from save_data.save_csv import into_csv
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.common.exceptions import NoSuchElementException
@@ -43,9 +42,10 @@ class ExtractWebsite:
                 if self._is_check_job_links_file_date():
                     _scraped_today = True
                     ##### ! For multiple line strings, we must use """ - """ format
-                    _continue = input(f"""'jobvision.ir' jobs scraped just today. If you want to find the jobs for 
-                                    '{self.job_title}' again press 'y'. Press 'n' to exit, or press any other 
-                                    key to scrap job links from the job_link file: """)
+                    _continue = input(f"""'jobvision.ir' jobs scraped just today\n
+If you want to find the jobs for '{self.job_title}' again press 'y'\n
+Press 'n' to exit\n
+Press any other key to scrap job links from the job_link file: """)
                     if _continue.strip().lower() == 'n':
                         return 'Do not proceed with jobvision.ir'
                     
@@ -135,10 +135,12 @@ class ExtractWebsite:
     
     def _is_check_job_links_file_date(self) -> bool:
         """Check the date in the first line of the '_jobvision_links.txt'. If less than a day passed since the job scrapped, return True. If no file found, create a new file"""
-        current_directory = pathlib.Path(__file__).parent.resolve()
+        # current_directory = pathlib.Path(__file__).parent.resolve()
+        files_directory = os.path.join(pathlib.Path(__file__).parent.parent.resolve(), 'files')
         job_link_file_name = "_jobvision_links.txt"
         try:
-            with open(f'{os.path.join(current_directory, job_link_file_name)}', 'rt') as f:
+            # with open(f'{os.path.join(current_directory, job_link_file_name)}', 'rt') as f:
+            with open(f'{os.path.join(files_directory, job_link_file_name)}', 'rt') as f:
                 link_sample = f.readlines(400)
                 date_str = link_sample[0]
             date_obj = datetime.date.fromisoformat(date_str.replace('\n', ''))
@@ -147,7 +149,8 @@ class ExtractWebsite:
                 return True
         # If the file does not exist create it and enter today date in the first line in the file
         except Exception:
-            with open(f'{os.path.join(current_directory, job_link_file_name)}', 'wt') as f:
+            # with open(f'{os.path.join(current_directory, job_link_file_name)}', 'wt') as f:
+            with open(f'{os.path.join(files_directory, job_link_file_name)}', 'wt') as f:
                 f.write(datetime.date.today().strftime('%Y-%m-%d'))
             print('Jobvision job list file just created\n')
         return False
@@ -156,9 +159,11 @@ class ExtractWebsite:
     def _write_link_into_file(self, job_link_set:set) -> bool:
         """Write job link urls into job_link file. If successful return True"""
         try:
-            current_directory = pathlib.Path(__file__).parent.resolve()
+            # current_directory = pathlib.Path(__file__).parent.resolve()
+            files_directory = os.path.join(pathlib.Path(__file__).parent.parent.resolve(), 'files')
             job_link_file_name = "_jobvision_links.txt"
-            with open(f'{os.path.join(current_directory, job_link_file_name)}', 'wt') as f:
+            # with open(f'{os.path.join(current_directory, job_link_file_name)}', 'wt') as f:
+            with open(f'{os.path.join(files_directory, job_link_file_name)}', 'wt') as f:
                 f.write(datetime.date.today().strftime('%Y-%m-%d'))
                 for ul in job_link_set:
                     f.write(f"{'\n\n' + ul}")
@@ -172,9 +177,11 @@ class ExtractWebsite:
     def _read_link_from_file(self, job_link_set:set) -> set:
         """Read job link urls from job_link file. If successful return True"""
         try:
-            current_directory = pathlib.Path(__file__).parent.resolve()
+            # current_directory = pathlib.Path(__file__).parent.resolve()
+            files_directory = os.path.join(pathlib.Path(__file__).parent.parent.resolve(), 'files')
             job_link_file_name = "_jobvision_links.txt"
-            with open(f'{os.path.join(current_directory, job_link_file_name)}', 'rt') as f:
+            # with open(f'{os.path.join(current_directory, job_link_file_name)}', 'rt') as f:
+            with open(f'{os.path.join(files_directory, job_link_file_name)}', 'rt') as f:
                 data = f.readlines()
             for d in data:
                 if d.startswith('http'):

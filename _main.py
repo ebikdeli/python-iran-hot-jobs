@@ -13,7 +13,7 @@ def main(check_domain: bool=True) -> None:
     
     try:
         while True:
-            enter_number = input('\nWebsite codes to scrap: Press "1" for "jobvision.ir". To quit press "n": ')
+            enter_number = input('\nWebsite codes to scrap:\nPress "1" for "jobvision.ir".\nTo quit press "n": ')
             if enter_number.strip().lower() == 'n':
                 print('\nProgram terminated...')
                 exit()
@@ -23,7 +23,9 @@ def main(check_domain: bool=True) -> None:
             
             # ! 2- Check if user want just a job link to scrap or the whole website to be scrapped
             while True:
-                just_one_link = input(f"""\nPress "any" key to scrap all the jobs in "{website_codes[enter_number]}". Press "2" to scrap just one job link in "{website_codes[enter_number]}". To quit press "n": """)
+                just_one_link = input(f"""\nPress "any" key to scrap all the jobs in "{website_codes[enter_number]}"\n
+Press "2" to scrap just one job link in "{website_codes[enter_number]}"\n
+To quit press "n": """)
                 if just_one_link.strip().lower() == 'n':
                     print('\nProgram terminated...')
                     exit()
